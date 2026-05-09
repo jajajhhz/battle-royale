@@ -1,5 +1,104 @@
 # Changelog
 
+## v0.4 — 2026-05-09 — The Skeptic: anti-circular-context bias
+
+**Breaking change** to judge prompt only. Defender format unchanged from v0.3.
+
+### Why
+
+v0.3 hid the spec from the judge but kept treating shared context as ground
+truth. In practice, shared context is *authored* — it may contain interpretive
+phrases ("X cannibalizes Y," "X structurally cannot ship Z," "moat through
+incentive incompatibility") dressed as facts. When defender rhetoric and
+shared context echo each other (a common pattern when both are synthesized
+from the same upstream sources), interpretation gets laundered into
+architecture. The judge sees the same phrase twice and treats it as
+corroborated, even when no primary source has been checked.
+
+Concrete example from the meishi battle: "Eight cannibalizes its feed" appeared
+in both defenders' cases AND in shared context. v0.3 graded it ✓ verified
+because it was "in shared context." A 30-second WebSearch under v0.4 disproved
+it — Eight already ships CSV export and explicitly gates it behind their
+¥600/mo Premium tier. Export is what Eight monetizes, not what they refuse to
+ship. The "structural conflict" was fiction repeated until it sounded like
+fact.
+
+### What changed
+
+- **Judge prompt**: rewritten as **The Skeptic** — a blunt, evidence-obsessed
+  critic with explicit voice rules (short sentences, sharp questions, calls
+  out jargon by name). The persona makes skepticism the default disposition
+  rather than a reluctant tiebreaker.
+- **Three-tier claim taxonomy**: every claim is now classified before being
+  graded.
+  - **Hard facts** (numbers, dates, named entities, public filings) →
+    ✓ verifiable from shared context.
+  - **Soft facts** (surveys, perceived dynamics, "informal user research")
+    → ⚠ partial unless methodology is citable.
+  - **Interpretive claims** ("cannibalizes," "structurally cannot ship,"
+    "moat," "depends on," "creates a category," "is positioned to win")
+    → **default ⚠**. Must be upgraded to ✓ via a primary source, multiple
+    independent confirmations beyond shared context, OR a WebSearch result
+    the judge can cite. Otherwise the grade it props up gets a **mandatory
+    downgrade**.
+- **Mandatory downgrade rule**: previously discretionary; now required.
+  Strong with critical ⚠ → Neutral. Weak with critical ⚠ → Neutral.
+- **New required output section**: `## SEARCHES PERFORMED`. Judges must
+  list every WebSearch query and finding, OR explicitly state which
+  interpretive claims they accepted on shared-context-only trust and why
+  that's defensible.
+- **Parser fix**: `scripts/parse-verdict.sh` now tolerates grade-cell
+  annotations like `Neutral (DOWNGRADED from Strong)`. Judges are encouraged
+  to flag downgrades inline, so the parser must accept them.
+
+### Validation
+
+Re-judged Match A under v0.4 using the same v0.3 defender outputs (their
+one-liners and provenance tags were already correct):
+
+| Methodology | Match A winner | Differential | Decider |
+|---|---|---|---|
+| v0.1 (numeric) | ① Open Meishi Capture | A: 39.5 vs B: 35.5 | numeric ceiling |
+| v0.2 (grades, judge sees specs) | ① Open Meishi Capture | A: +2.5 vs B: −3.0 | spec rhetoric |
+| v0.3 (grades, no spec, verification) | ③ Touch Meishi Exchange | A: −3.0 vs B: +4.0 | shared-context Wedge + Moat |
+| **v0.4 (Skeptic + WebSearch verification)** | **③ Touch Meishi Exchange** | **A: −4.5 vs B: +1.0** | **Distinctiveness (untouched by downgrades)** |
+
+Same winner as v0.3, but the **reasoning is materially different**:
+
+- The Skeptic used 3/3 of its WebSearch budget on the load-bearing
+  interpretive claim "Eight structurally cannot ship export without
+  cannibalizing its feed." Primary-source verification (Eight's published
+  Premium tier page) **disproved it**.
+- Mandatory downgrade applied to BOTH sides' moat grades:
+  - Idea B: Moat **Strong → Neutral** (the structural moat claim collapsed)
+  - Idea A: Moat **Neutral → Weak** confirmed (the wedge thesis was that
+    same disproved cannibalization claim, plus the spec's own "defensibility
+    is thin" admission)
+- The Prairie Card "1M cumulative users" anchor could not be verified beyond
+  shared context within the search budget — marked ⚠.
+- B still wins because **Distinctiveness** (the only grade-determining
+  criterion that no interpretive claim touched) decisively favors a
+  ceremonial-bilingual-buy-once iOS app with a refusal manifesto over an
+  OCR scanner whose differentiator is "the absence of a feed."
+
+The differential narrowed from +7.0 (v0.3) to +5.5 (v0.4) — the same winner,
+but for a more honest reason. Three Strong grades dropped, three Weak grades
+held. That's the system working: the verdict didn't flip, but the
+*evidence supporting it* shifted from interpretive consensus to the one
+criterion where the interpretive claims didn't matter.
+
+### Compatibility
+
+- Defender output format unchanged from v0.3 — defenders do NOT need to be
+  re-spawned to migrate.
+- Parser is backward-compatible with v0.3 verdicts (no annotations) and
+  forward-compatible with v0.4 verdicts (grade-cell annotations now allowed).
+- v0.3 and v0.4 verdicts can coexist in the same output tree.
+- To re-judge an existing battle under v0.4: run only the judge phase with
+  the new prompt; defender outputs from v0.3 stay untouched.
+
+---
+
 ## v0.3 — 2026-05-09 — Spec-blind judge with verification
 
 **Breaking change** to defender output format and judge architecture.

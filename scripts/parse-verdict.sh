@@ -93,11 +93,14 @@ for crit in criteria:
     name = crit["name"]
     # Match the row containing the criterion name. Allow flexible whitespace and decoration.
     # Capture: weight, A grade, A proofs, B grade, B proofs
+    # Grade cell may include annotation after the grade word
+    # (e.g. "Neutral (DOWNGRADED from Strong)" — v0.4 judges flag downgrades).
+    # We capture the grade word at the start of the cell and ignore the rest until |.
     pattern = (
         r"\|\s*\d+\.\s*"
         + re.escape(name)
-        + r"\s*\|\s*(?P<wt>[0-9.]+)\s*\|\s*\**\s*(?P<a_grade>Strong|Neutral|Weak)\s*\**\s*\|"
-        + r"\s*(?P<a_proofs>[^|]*?)\s*\|\s*\**\s*(?P<b_grade>Strong|Neutral|Weak)\s*\**\s*\|"
+        + r"\s*\|\s*(?P<wt>[0-9.]+)\s*\|\s*\**\s*(?P<a_grade>Strong|Neutral|Weak)\b[^|]*\|"
+        + r"\s*(?P<a_proofs>[^|]*?)\s*\|\s*\**\s*(?P<b_grade>Strong|Neutral|Weak)\b[^|]*\|"
         + r"\s*(?P<b_proofs>[^|]*?)\s*\|"
     )
     m = re.search(pattern, verdict_text, re.IGNORECASE | re.DOTALL)
