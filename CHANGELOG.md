@@ -1,5 +1,64 @@
 # Changelog
 
+## v0.3 — 2026-05-09 — Spec-blind judge with verification
+
+**Breaking change** to defender output format and judge architecture.
+
+### Why
+
+v0.2 still let spec rhetoric leak to the judge through defender quotes. A spec
+that honestly enumerated risks gave its opponent free Weak-grade ammunition;
+a spec that confidently asserted moats earned undeserved Strong grades from
+defender interpretations the judge couldn't independently verify. Honesty was
+penalized; rhetoric was rewarded. Worse, when shared context was synthesized
+from the same source language as specs, evidence became circular.
+
+The fix: the judge sees no spec content. Defenders provide a neutral one-liner
++ tag every claim with provenance (`spec` / `shared-context` / `general`).
+The judge has WebSearch (limited budget) to independently verify critical
+claims and discretion to downgrade unverified rhetoric.
+
+### What changed
+
+- **Defender prompt**: new mandatory `## ONE-LINER` section (≤30 words,
+  factual, neutral) at the top of every defense — this becomes the judge's
+  ONLY view of "what is this idea". All claims must be tagged with provenance
+  in parentheses: `(spec)`, `(shared-context)`, or `(general)`.
+- **Judge prompt**: idea names removed (judge sees only "Idea A" / "Idea B");
+  shared context is now the only contextual ground truth. Judge has a
+  WebSearch budget (max 3 queries per match) for verifying claims that can't
+  be confirmed via shared context. Each grade carries a verification status
+  (✓ verified / ⚠ partial / ✗ unverified). Judge has discretion to downgrade
+  Strong → Neutral (or upgrade Weak → Neutral) when claims are critical and
+  unverified.
+- Output table grows the verification column; differential math unchanged.
+
+### Validation
+
+Re-judged the meishi battle Match A under v0.3 using the same shared-context
+file. The verdict **flipped**:
+
+| Methodology | Match A winner | Margin |
+|---|---|---|
+| v0.1 (numeric) | ① Open Meishi Capture | 39.5 vs 35.5 (4.0) |
+| v0.2 (grades, judge sees specs) | ① Open Meishi Capture | +2.5 vs −3.0 (5.5) |
+| v0.3 (grades, no spec, verification) | **③ Touch Meishi Exchange** | **+4.0 vs −3.0 (7.0)** |
+
+Net 12.5-point grade swing. Why: ①'s Wedge dropped Strong→Weak and ①'s
+Distinctiveness dropped Neutral→Weak when the judge could no longer be
+persuaded by spec-quote interpretations; ③'s Wedge and Moat rose Weak→Strong
+when the judge weighted shared-context-verified evidence over defender
+rhetoric. The judge used 0 of 3 WebSearch queries — shared context was rich
+enough for this match.
+
+### Migration
+
+v0.2 verdicts coexist with v0.3 verdicts in the same output tree (different
+files). To re-judge under v0.3, re-spawn defenders (the new ONE-LINER section
+is required) — the parser is backward-compatible with v0.2 grade tables.
+
+---
+
 ## v0.2 — 2026-05-09 — Qualitative grading
 
 **Breaking change** to rubric, judge prompt, and parser format.
