@@ -1,0 +1,27 @@
+# Generated battle outputs
+output/
+*/output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.pyc
+
+# Local user runs (people might `bash scripts/init-battle.sh ./my-test`)
+my-test/
+my-battle/
+test-battle/
+
+# Misc temp
+*.tmp
+*.log

@@ -1,0 +1,18 @@
+name: "Vanilla vs Chocolate (smoke test)"
+date: "2026-05-09"
+
+contestants:
+  - id: "1"
+    name: "Vanilla Ice Cream"
+    spec: "ideas/vanilla.md"
+  - id: "2"
+    name: "Chocolate Ice Cream"
+    spec: "ideas/chocolate.md"
+
+rubric: "/Users/huhengzhou/.claude/skills/battle-royale/rubrics/balanced.yaml"
+context: "context/ice-cream-context.md"
+
+format: "bracket"
+bracket:
+  semifinals:
+    - ["1", "2"]

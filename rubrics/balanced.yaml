@@ -1,0 +1,75 @@
+name: "Balanced 5-criterion rubric"
+description: |
+  Evaluates ideas against a 5-step investor decision logic:
+  Category & Ceiling → Wedge & Traction → Architecture & Moat → Trust → Execution.
+  Each criterion folds related sub-questions into one calibrated score (1-10).
+total_max: 65
+
+criteria:
+  - id: strategic_ceiling
+    name: "Strategic ceiling"
+    weight: 1.5
+    investor_step: "1 — Category & ceiling"
+    score_prompt: |
+      Can this return 100×? Is the addressable category large?
+      If the ceiling is too low, no risk discount makes the round attractive.
+      10 = Clear path to category-defining $1B+ outcome.
+       7 = Plausible $100-500M outcome.
+       4 = Niche; modest single-digit-million ARR ceiling.
+       1 = Strategic dead end; no Year 2 story.
+
+  - id: wedge_and_market
+    name: "Wedge & market evidence"
+    weight: 1.5
+    investor_step: "2 — Wedge & traction"
+    score_prompt: |
+      Combined criterion. ALL THREE required for high score:
+        (a) Sharp narrow entry expressible in <=20 words.
+        (b) Validated demand evidence in shared context.
+        (c) Specific competitor gap incumbents STRUCTURALLY won't fill.
+      A vivid felt user pain sits underneath all three — without it, no wedge exists.
+      10 = Crystal wedge + comp products with users/ARR + structural gap incumbents can't fill.
+       7 = Identifiable wedge + adjacent comps + plausible competitor gap.
+       4 = Vague wedge OR demand is hypothetical OR competitor map hand-waved.
+       1 = No wedge + no demand evidence + free incumbents already own this exact space.
+
+  - id: moat_and_trust
+    name: "Moat & trust posture"
+    weight: 1.5
+    investor_step: "3 + 4 — Architecture & moat + Trust"
+    score_prompt: |
+      Combined criterion. Both the strategic moat AND the diligence-cleanness.
+        (a) STRUCTURALLY hard to copy that compounds with use (data, network, regulatory, integration).
+        (b) Clean trust posture — privacy, compliance, data handling NOT carrying a permanent diligence discount.
+      Architectural decisions cannot be retrofitted later; both axes must be clean from the start.
+      10 = Multiple compounding moats + trust posture is itself a competitive advantage.
+       7 = One real moat (12+ months to copy) + standard hygiene, nothing flagged.
+       4 = Thin moat (<6 months to copy) OR some diligence cleanup needed later.
+       1 = No moat + structural diligence discount built in.
+
+  - id: distinctiveness
+    name: "Distinctiveness"
+    weight: 1.0
+    investor_step: "(cross-cutting brand axis)"
+    score_prompt: |
+      Cultural / brand uniqueness — could only THIS exist with this identity?
+      Different from "wedge" (strategic position) and "moat" (structural defensibility).
+      This is the FELT uniqueness: aesthetic, voice, posture, ethos.
+      Pass the "show-stranger" test 24h later — do they remember it?
+      10 = Once-a-decade product; passes the show-stranger 24h test cleanly.
+       7 = Strong distinctive identity in its category.
+       4 = Recognizable but not memorable.
+       1 = Indistinguishable from existing alternatives.
+
+  - id: execution_credibility
+    name: "Execution credibility"
+    weight: 1.0
+    investor_step: "5 — Execution credibility"
+    score_prompt: |
+      Combined criterion. Both founder fit AND ship-ability.
+        (a) Can the stated founder ship this within stated constraints?
+        (b) Concrete v1 in 6-12 months without wishful hires/raises?
+      10 = Solo-buildable with founder's existing skills, ship in <8 weeks, no external blockers.
+       7 = Solo + one contractor, 3-6 months.
+       4 = Requires cofounder/capital raise founder cannot make; 9-12 months.
+       1 = Requires team that doesn't exist + raise that can't happen + multi-year timeline.
