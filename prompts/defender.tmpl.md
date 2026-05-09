@@ -29,7 +29,13 @@ Do not soft-pedal. This is adversarial advocacy. Argue the rubric, not just rhet
 
 ---
 
-## The rubric (judge will score you on these)
+## The rubric (judge will GRADE you on these — Strong / Neutral / Weak)
+
+The judge grades each idea on each criterion as Strong / Neutral / Weak,
+backed by 2+ specific proofs (quotes from spec or shared context). A grade
+without 2+ cited proofs is downgraded to Neutral. Argue each criterion by
+naming what makes your idea **Strong** with specific cited evidence — and
+what makes the opponent's idea **Weak** with specific cited evidence.
 
 {RUBRIC_SUMMARY}
 

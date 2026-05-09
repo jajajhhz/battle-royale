@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# parse-verdict.sh — Extract structured scores from a judge verdict.md
+# parse-verdict.sh — Extract structured grades + proofs from a judge verdict.md
 #
 # Usage:
 #   parse-verdict.sh <verdict.md> <rubric.yaml>
@@ -7,20 +7,28 @@
 # Output: JSON with keys:
 #   {
 #     "verdict": "Idea A" | "Idea B",
-#     "scores": {
-#       "criterion_id": { "a": int, "b": int, "weight": float }
+#     "grades": {
+#       "criterion_id": {
+#         "name": "...",
+#         "weight": float,
+#         "a_grade": "Strong"|"Neutral"|"Weak",
+#         "a_proofs": "...",
+#         "b_grade": "Strong"|"Neutral"|"Weak",
+#         "b_proofs": "..."
+#       }
 #     },
-#     "weighted_total_a": float,
-#     "weighted_total_b": float,
-#     "winner": "A" | "B",
+#     "differential_a": float,   # Σ (a_points × weight)
+#     "differential_b": float,   # Σ (b_points × weight)
+#     "winner": "A"|"B",
+#     "score_winner": "A"|"B"|"TIE",
 #     "deciding_factor": "...",
-#     "ceiling_risk": "..."
+#     "ceiling_risk": "...",
+#     "reasoning": "..."
 #   }
 #
 # Exit codes:
 #   0  parsed cleanly
-#   2  format error (missing scores, malformed table)
-#   3  scores out of range or non-integer
+#   2  format error (missing grades, malformed table)
 
 set -euo pipefail
 
@@ -39,7 +47,7 @@ rubric_path = Path(sys.argv[2])
 
 verdict_text = verdict_path.read_text(encoding="utf-8")
 
-# Load rubric criteria (lightweight YAML parsing — top-level criteria list)
+# --- Parse rubric criteria ---
 rubric_text = rubric_path.read_text(encoding="utf-8")
 criteria = []
 current = None
@@ -47,7 +55,7 @@ for line in rubric_text.splitlines():
     s = line.rstrip()
     m_id = re.match(r"\s*- id:\s*(\S+)", s)
     if m_id:
-        if current:
+        if current and "name" in current and "weight" in current:
             criteria.append(current)
         current = {"id": m_id.group(1)}
         continue
@@ -59,82 +67,96 @@ for line in rubric_text.splitlines():
     if m_weight and current is not None:
         current["weight"] = float(m_weight.group(1))
         continue
-if current:
+if current and "name" in current and "weight" in current:
     criteria.append(current)
 
 if not criteria:
     sys.stderr.write("ERROR: no criteria parsed from rubric\n")
     sys.exit(2)
 
-# Parse verdict line
+# --- Parse verdict ---
 verdict_match = re.search(r"##\s*VERDICT:\s*Idea\s*([AB])\b", verdict_text, re.IGNORECASE)
 if not verdict_match:
     sys.stderr.write("ERROR: no VERDICT line found\n")
     sys.exit(2)
 winner_letter = verdict_match.group(1).upper()
 
-# Parse score table — match each criterion row
-# Row format: | N. Criterion Name | weight | A/10 | B/10 |
-scores = {}
+# --- Parse grades table ---
+# Row format:
+#   | N. Criterion Name | weight | <Strong/Neutral/Weak> | "<A proofs>" | <grade> | "<B proofs>" |
+# Be tolerant of bold markers (**Strong**), backticks, italics, etc.
+GRADE_PATTERN = r"(?P<grade>Strong|Neutral|Weak)"
+GRADE_POINTS = {"Strong": 1, "Neutral": 0, "Weak": -1}
+
+grades = {}
 for crit in criteria:
     name = crit["name"]
-    # Match the row containing the criterion name
-    # Tolerate variations in spacing
+    # Match the row containing the criterion name. Allow flexible whitespace and decoration.
+    # Capture: weight, A grade, A proofs, B grade, B proofs
     pattern = (
         r"\|\s*\d+\.\s*"
         + re.escape(name)
-        + r"\s*\|\s*([0-9.]+)\s*\|\s*(\d+)\s*/\s*10\s*\|\s*(\d+)\s*/\s*10\s*\|"
+        + r"\s*\|\s*(?P<wt>[0-9.]+)\s*\|\s*\**\s*(?P<a_grade>Strong|Neutral|Weak)\s*\**\s*\|"
+        + r"\s*(?P<a_proofs>[^|]*?)\s*\|\s*\**\s*(?P<b_grade>Strong|Neutral|Weak)\s*\**\s*\|"
+        + r"\s*(?P<b_proofs>[^|]*?)\s*\|"
     )
-    m = re.search(pattern, verdict_text, re.IGNORECASE)
+    m = re.search(pattern, verdict_text, re.IGNORECASE | re.DOTALL)
     if not m:
-        sys.stderr.write(f"ERROR: could not parse score row for criterion: {name}\n")
+        sys.stderr.write(f"ERROR: could not parse grade row for criterion: {name}\n")
         sys.exit(2)
-    weight_in_table = float(m.group(1))
-    a_score = int(m.group(2))
-    b_score = int(m.group(3))
-    if not (1 <= a_score <= 10 and 1 <= b_score <= 10):
-        sys.stderr.write(f"ERROR: scores out of range 1-10 for {name}: a={a_score} b={b_score}\n")
-        sys.exit(3)
-    # Validate weight matches rubric (warn only)
+
+    a_grade = m.group("a_grade").capitalize()
+    b_grade = m.group("b_grade").capitalize()
+    weight_in_table = float(m.group("wt"))
     if abs(weight_in_table - crit["weight"]) > 0.01:
         sys.stderr.write(
             f"WARN: weight mismatch for {name}: rubric={crit['weight']} table={weight_in_table}\n"
         )
-    scores[crit["id"]] = {
+
+    grades[crit["id"]] = {
         "name": name,
         "weight": crit["weight"],
-        "a": a_score,
-        "b": b_score,
+        "a_grade": a_grade,
+        "a_proofs": m.group("a_proofs").strip(),
+        "b_grade": b_grade,
+        "b_proofs": m.group("b_proofs").strip(),
     }
 
-weighted_a = round(sum(s["a"] * s["weight"] for s in scores.values()), 1)
-weighted_b = round(sum(s["b"] * s["weight"] for s in scores.values()), 1)
+# --- Compute differentials ---
+diff_a = round(sum(GRADE_POINTS[g["a_grade"]] * g["weight"] for g in grades.values()), 2)
+diff_b = round(sum(GRADE_POINTS[g["b_grade"]] * g["weight"] for g in grades.values()), 2)
 
-# Determine winner from scores; cross-check with stated VERDICT
-score_winner = "A" if weighted_a > weighted_b else "B" if weighted_b > weighted_a else "TIE"
+if diff_a > diff_b:
+    score_winner = "A"
+elif diff_b > diff_a:
+    score_winner = "B"
+else:
+    score_winner = "TIE"
+
 if score_winner != "TIE" and score_winner != winner_letter:
     sys.stderr.write(
-        f"WARN: stated verdict ({winner_letter}) disagrees with score winner ({score_winner})\n"
+        f"WARN: stated VERDICT ({winner_letter}) disagrees with grade-differential winner ({score_winner})\n"
     )
 
-# Extract deciding factor and ceiling/risk paragraphs
+# --- Extract narrative sections ---
 def extract_section(text, header):
     pattern = rf"##\s*{re.escape(header)}\s*\n+(.*?)(?=\n##\s|\Z)"
     m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
     return m.group(1).strip() if m else ""
 
 deciding_factor = extract_section(verdict_text, "THE DECIDING FACTOR")
-ceiling_risk = extract_section(verdict_text, "CEILING × RISK ASSESSMENT") or extract_section(
-    verdict_text, "CEILING x RISK ASSESSMENT"
+ceiling_risk = (
+    extract_section(verdict_text, "CEILING × RISK ASSESSMENT")
+    or extract_section(verdict_text, "CEILING x RISK ASSESSMENT")
 )
 reasoning = extract_section(verdict_text, "REASONING")
 
 result = {
     "verdict": f"Idea {winner_letter}",
     "winner": winner_letter,
-    "scores": scores,
-    "weighted_total_a": weighted_a,
-    "weighted_total_b": weighted_b,
+    "grades": grades,
+    "differential_a": diff_a,
+    "differential_b": diff_b,
     "score_winner": score_winner,
     "deciding_factor": deciding_factor,
     "ceiling_risk": ceiling_risk,

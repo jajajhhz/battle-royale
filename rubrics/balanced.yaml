@@ -1,75 +1,109 @@
-name: "Balanced 5-criterion rubric"
+name: "Balanced 5-criterion rubric (qualitative grading)"
 description: |
-  Evaluates ideas against a 5-step investor decision logic:
-  Category & Ceiling → Wedge & Traction → Architecture & Moat → Trust → Execution.
-  Each criterion folds related sub-questions into one calibrated score (1-10).
-total_max: 65
+  Evaluates ideas against a 5-step investor decision logic.
+  Each criterion is graded Strong / Neutral / Weak per idea, backed by 2+
+  specific proofs (quotes from spec or shared context).
+  Numeric 1-10 scoring was replaced because LLMs collapse to a 6/7/8 gradient,
+  hiding real judgment in adjacent integers. The 3-grade system forces
+  evidence-backed commitment.
+
+# Grade definitions (apply to all criteria)
+grading:
+  - grade: Strong
+    points: 1
+    description: |
+      Clear evidence-backed advantage on this criterion.
+      Requires 2+ specific quotes (from the idea's spec OR shared context)
+      that match the criterion's "Strong anchor". If the judge cannot cite
+      proofs, downgrade to Neutral.
+  - grade: Neutral
+    points: 0
+    description: |
+      Evidence is mixed, weak both ways, OR insufficient to favor either side.
+      Use this when the criterion is genuinely contested or when neither
+      defender presented decisive evidence.
+      NOT a default — only when warranted.
+  - grade: Weak
+    points: -1
+    description: |
+      Clear evidence-backed disadvantage on this criterion.
+      Requires 2+ specific quotes — typically self-admissions in the spec, or
+      counter-evidence in shared context — matching the criterion's "Weak anchor".
+
+# Verdict math:
+#   For each criterion: differential = (A_grade_points - B_grade_points) × weight
+#   Sum across criteria → total_differential
+#   Positive = A wins, Negative = B wins, Zero = tie (judge breaks via "deciding factor")
+verdict_method: weighted_grade_differential
 
 criteria:
   - id: strategic_ceiling
     name: "Strategic ceiling"
     weight: 1.5
     investor_step: "1 — Category & ceiling"
-    score_prompt: |
-      Can this return 100×? Is the addressable category large?
-      If the ceiling is too low, no risk discount makes the round attractive.
-      10 = Clear path to category-defining $1B+ outcome.
-       7 = Plausible $100-500M outcome.
-       4 = Niche; modest single-digit-million ARR ceiling.
-       1 = Strategic dead end; no Year 2 story.
+    grade_anchors: |
+      Strong: spec or shared context cites a direct comp at $1B+ outcome at this exact thesis,
+              with a clear path stated. Examples of citation: "Sky $80-120M ARR no ads",
+              "Apollo $1.6B at $200M ARR".
+      Neutral: plausible but adjacent comps only; OR spec admits "$100-500M outcome" without
+               a direct comp at the exact thesis.
+      Weak: spec admits "lifestyle utility / not a venture company" / "VC interest: Zero" /
+            "Don't build alone"; OR shared context contains counter-evidence such as
+            "category public-market multiple is mature/slow-growth" (e.g., Sansan 3x ARR).
 
   - id: wedge_and_market
     name: "Wedge & market evidence"
     weight: 1.5
     investor_step: "2 — Wedge & traction"
-    score_prompt: |
-      Combined criterion. ALL THREE required for high score:
-        (a) Sharp narrow entry expressible in <=20 words.
-        (b) Validated demand evidence in shared context.
-        (c) Specific competitor gap incumbents STRUCTURALLY won't fill.
-      A vivid felt user pain sits underneath all three — without it, no wedge exists.
-      10 = Crystal wedge + comp products with users/ARR + structural gap incumbents can't fill.
-       7 = Identifiable wedge + adjacent comps + plausible competitor gap.
-       4 = Vague wedge OR demand is hypothetical OR competitor map hand-waved.
-       1 = No wedge + no demand evidence + free incumbents already own this exact space.
+    grade_anchors: |
+      ALL THREE required for Strong:
+        (a) Sharp narrow entry expressible in ≤20 words.
+        (b) Validated demand evidence in shared context (cite the line).
+        (c) Specific competitor gap incumbents STRUCTURALLY won't fill (cite competitor table).
+      Strong: all three present, each with citation.
+      Neutral: 2 of 3 present, OR demand is hypothetical, OR wedge is broad/multi-pronged.
+      Weak: 1 or fewer present; shared context contains anti-evidence such as "NO direct
+            evidence of demand for X"; OR the wedge sits inside a saturated category
+            with multiple billion-dollar incumbents.
 
   - id: moat_and_trust
     name: "Moat & trust posture"
     weight: 1.5
     investor_step: "3 + 4 — Architecture & moat + Trust"
-    score_prompt: |
-      Combined criterion. Both the strategic moat AND the diligence-cleanness.
-        (a) STRUCTURALLY hard to copy that compounds with use (data, network, regulatory, integration).
-        (b) Clean trust posture — privacy, compliance, data handling NOT carrying a permanent diligence discount.
-      Architectural decisions cannot be retrofitted later; both axes must be clean from the start.
-      10 = Multiple compounding moats + trust posture is itself a competitive advantage.
-       7 = One real moat (12+ months to copy) + standard hygiene, nothing flagged.
-       4 = Thin moat (<6 months to copy) OR some diligence cleanup needed later.
-       1 = No moat + structural diligence discount built in.
+    grade_anchors: |
+      Strong: multiple compounding moats (data + network + brand + integration) AND clean
+              trust posture; OR a structural moat that incumbents architecturally cannot
+              copy (e.g., business-model conflict, KPI incompatibility — cite the specific
+              reason). Trust posture is itself a competitive advantage (e.g. "no GPS ever",
+              "no free-text surface").
+      Neutral: one real moat with 12+ months copy time; standard trust hygiene, nothing flagged.
+      Weak: spec admits "thin moat" / "defensibility is thin"; OR shared context flags
+            "copyable in <6 months"; OR trust posture has structural diligence discount;
+            OR the claimed moat is "feature parity an incumbent can ship in 1 quarter".
 
   - id: distinctiveness
     name: "Distinctiveness"
     weight: 1.0
     investor_step: "(cross-cutting brand axis)"
-    score_prompt: |
-      Cultural / brand uniqueness — could only THIS exist with this identity?
-      Different from "wedge" (strategic position) and "moat" (structural defensibility).
-      This is the FELT uniqueness: aesthetic, voice, posture, ethos.
-      Pass the "show-stranger" test 24h later — do they remember it?
-      10 = Once-a-decade product; passes the show-stranger 24h test cleanly.
-       7 = Strong distinctive identity in its category.
-       4 = Recognizable but not memorable.
-       1 = Indistinguishable from existing alternatives.
+    grade_anchors: |
+      Strong: passes the show-stranger 24h test; named new category OR memorable refusal
+              manifesto; multiple defining design choices (e.g. "no faces", "no free text",
+              "Risograph illustration", "60-phrase Dark Souls library"); the product cannot
+              be confused with any existing alternative.
+      Neutral: distinctive within category but not category-defining; recognizable but not
+               memorable beyond first impression.
+      Weak: indistinguishable from existing alternatives; commodity layer (e.g., "OCR scanner
+            with one extra export destination"); positioning is a removal/feature toggle
+            rather than a creation.
 
   - id: execution_credibility
     name: "Execution credibility"
     weight: 1.0
     investor_step: "5 — Execution credibility"
-    score_prompt: |
-      Combined criterion. Both founder fit AND ship-ability.
-        (a) Can the stated founder ship this within stated constraints?
-        (b) Concrete v1 in 6-12 months without wishful hires/raises?
-      10 = Solo-buildable with founder's existing skills, ship in <8 weeks, no external blockers.
-       7 = Solo + one contractor, 3-6 months.
-       4 = Requires cofounder/capital raise founder cannot make; 9-12 months.
-       1 = Requires team that doesn't exist + raise that can't happen + multi-year timeline.
+    grade_anchors: |
+      Strong: solo-buildable with the founder's existing skills, ship in <8 weeks, no external
+              blockers, explicit kill-gates defined.
+      Neutral: solo + 1-2 contractors, 3-6 months, raise plausible but not yet secured.
+      Weak: requires team founder cannot hire (e.g., "3-5 person studio"), OR raise founder
+            cannot make (cite shared context), OR multi-year build, OR cultural-authority
+            claim founder cannot make alone.

@@ -10,6 +10,8 @@
 #
 # Writes:
 #   <battle-dir>/output/final-report.md
+#
+# v0.2: renders qualitative grade tables (Strong/Neutral/Weak) instead of numeric scores.
 
 set -euo pipefail
 
@@ -17,7 +19,7 @@ battle_dir="${1:?Usage: summary.sh <battle-dir>}"
 [[ -d "$battle_dir/output" ]] || { echo "ERROR: no output directory in $battle_dir" >&2; exit 1; }
 
 python3 - "$battle_dir" <<'PYEOF'
-import json, sys
+import json, re, sys
 from pathlib import Path
 
 battle_dir = Path(sys.argv[1])
@@ -29,11 +31,9 @@ if not state_path.exists():
 
 state = json.loads(state_path.read_text(encoding="utf-8"))
 
-# Load contestant names from battle.yaml (lightweight parse)
-import re
+# Load contestant names from battle.yaml
 contestants = {}
-with open(battle_dir / "battle.yaml", encoding="utf-8") as f:
-    text = f.read()
+text = (battle_dir / "battle.yaml").read_text(encoding="utf-8")
 in_contestants = False
 current = None
 for line in text.splitlines():
@@ -49,18 +49,22 @@ for line in text.splitlines():
                 contestants[current["id"]] = current
             current = {"id": m_id.group(1)}
             continue
-        for f in ("name",):
-            m = re.match(rf"\s+{f}:\s*[\"']?(.+?)[\"']?\s*$", line)
-            if m and current is not None:
-                current[f] = m.group(1).strip()
+        m_name = re.match(r"\s+name:\s*[\"']?(.+?)[\"']?\s*$", line)
+        if m_name and current is not None:
+            current["name"] = m_name.group(1).strip()
 if current:
     contestants[current["id"]] = current
+
 
 def cname(cid):
     return contestants.get(cid, {}).get("name", cid)
 
-# Build cumulative scoreboard
-cumulative = {cid: {"name": cname(cid), "rounds": [], "total": 0.0} for cid in state["contestants"]}
+
+# Cumulative differential per contestant
+cumulative = {
+    cid: {"name": cname(cid), "rounds": [], "total_diff": 0.0}
+    for cid in state["contestants"]
+}
 
 for round_info in state["rounds"]:
     n = round_info["n"]
@@ -70,22 +74,23 @@ for round_info in state["rounds"]:
         if not verdict_path.exists():
             continue
         v = json.loads(verdict_path.read_text(encoding="utf-8"))
-        for letter, cid in zip(["A", "B"], cs):
-            score = v[f"weighted_total_{letter.lower()}"]
-            cumulative[cid]["rounds"].append({
-                "round": round_info["name"],
-                "match": match["id"],
-                "score": score,
-                "winner": cid == match.get("winner"),
-            })
-            cumulative[cid]["total"] += score
+        for letter, cid in zip(["a", "b"], cs):
+            diff = v[f"differential_{letter}"]
+            cumulative[cid]["rounds"].append(
+                {
+                    "round": round_info["name"],
+                    "match": match["id"],
+                    "diff": diff,
+                    "winner": cid == match.get("winner"),
+                }
+            )
+            cumulative[cid]["total_diff"] += diff
 
-# Sort cumulative by total desc
-sorted_cumulative = sorted(cumulative.values(), key=lambda x: -x["total"])
+sorted_cumulative = sorted(cumulative.values(), key=lambda x: -x["total_diff"])
 
-# Render report
+# --- Render report ---
 lines = []
-lines.append(f"# Battle Royale — Final Report")
+lines.append("# Battle Royale — Final Report")
 lines.append("")
 lines.append(f"**Battle:** {state.get('name', 'Unnamed Battle')}")
 lines.append(f"**Contestants:** {state['n_contestants']}")
@@ -97,15 +102,21 @@ if state["complete"] and state["champion"]:
     lines.append(f"## 🏆 Champion: {champ}")
     lines.append("")
 
-# Cumulative scoreboard
-lines.append("## Cumulative scoreboard")
+# Cumulative scoreboard (differentials)
+lines.append("## Cumulative scoreboard (grade differentials)")
 lines.append("")
-lines.append("| Idea | Total points | Rounds played | Status |")
+lines.append("Each match contributes a weighted grade differential per contestant.")
+lines.append("Strong = +1×weight, Neutral = 0, Weak = −1×weight, summed per match.")
+lines.append("")
+lines.append("| Idea | Cumulative differential | Rounds played | Status |")
 lines.append("|---|---|---|---|")
 for entry in sorted_cumulative:
-    total = round(entry["total"], 1)
-    rounds_str = ", ".join(f"{r['round']} ({r['score']:.1f})" for r in entry["rounds"]) or "—"
-    if state["champion"] == next(c for c, e in cumulative.items() if e is entry):
+    total = round(entry["total_diff"], 2)
+    rounds_str = (
+        ", ".join(f"{r['round']} ({r['diff']:+.2f})" for r in entry["rounds"]) or "—"
+    )
+    cid = next(c for c, e in cumulative.items() if e is entry)
+    if state["champion"] == cid:
         status = "🏆 Champion"
     elif entry["rounds"] and entry["rounds"][-1].get("winner"):
         status = "Advanced"
@@ -113,7 +124,10 @@ for entry in sorted_cumulative:
         status = "Eliminated"
     else:
         status = "—"
-    lines.append(f"| {entry['name']} | **{total}** | {rounds_str} | {status} |")
+    sign = "+" if total >= 0 else ""
+    lines.append(
+        f"| {entry['name']} | **{sign}{total}** | {rounds_str} | {status} |"
+    )
 lines.append("")
 
 # Per-round detail
@@ -136,13 +150,23 @@ for round_info in state["rounds"]:
         lines.append(f"### Match {match['id']}: {a_name} vs {b_name}")
         lines.append("")
         lines.append(f"**Winner:** {winner_name}")
-        lines.append(f"**Score:** {v['weighted_total_a']} vs {v['weighted_total_b']}")
+        lines.append(
+            f"**Differential:** A {v['differential_a']:+.2f}  vs  B {v['differential_b']:+.2f}"
+        )
+        if v.get("score_winner") == "TIE":
+            lines.append(
+                "*Note: differentials tied; verdict declared via tiebreaker (see deciding factor).*"
+            )
         lines.append("")
-        lines.append("| Criterion | Wt | " + a_name + " | " + b_name + " |")
+        lines.append(f"| Criterion | Wt | {a_name} | {b_name} |")
         lines.append("|---|---|---|---|")
-        for crit_id, sc in v["scores"].items():
-            lines.append(f"| {sc['name']} | {sc['weight']} | {sc['a']}/10 | {sc['b']}/10 |")
-        lines.append(f"| **Weighted total** | | **{v['weighted_total_a']}** | **{v['weighted_total_b']}** |")
+        for crit_id, g in v["grades"].items():
+            a_cell = f"**{g['a_grade']}** — {g['a_proofs']}" if g["a_proofs"] else f"**{g['a_grade']}**"
+            b_cell = f"**{g['b_grade']}** — {g['b_proofs']}" if g["b_proofs"] else f"**{g['b_grade']}**"
+            lines.append(f"| {g['name']} | {g['weight']} | {a_cell} | {b_cell} |")
+        lines.append(
+            f"| **Differential** | | **{v['differential_a']:+.2f}** | **{v['differential_b']:+.2f}** |"
+        )
         lines.append("")
         if v.get("deciding_factor"):
             lines.append("**Deciding factor:**")
@@ -155,29 +179,28 @@ for round_info in state["rounds"]:
             lines.append("> " + v["ceiling_risk"].replace("\n", "\n> "))
             lines.append("")
 
-# Cross-judge meta-analysis if multiple matches
+# Cross-match meta-analysis if multiple matches
 if sum(len(r["matches"]) for r in state["rounds"]) > 1:
     lines.append("## Meta-analysis")
     lines.append("")
-    deciding_factors = []
+    lines.append("### Deciding factors across matches")
+    lines.append("")
     for round_info in state["rounds"]:
         n = round_info["n"]
         for match in round_info["matches"]:
-            verdict_path = output_dir / f"round-{n}" / f"match-{match['id']}" / "verdict.json"
+            verdict_path = (
+                output_dir / f"round-{n}" / f"match-{match['id']}" / "verdict.json"
+            )
             if verdict_path.exists():
                 v = json.loads(verdict_path.read_text(encoding="utf-8"))
                 if v.get("deciding_factor"):
-                    deciding_factors.append({
-                        "round": round_info["name"],
-                        "match": match["id"],
-                        "factor": v["deciding_factor"][:200] + ("..." if len(v["deciding_factor"]) > 200 else ""),
-                    })
-    if deciding_factors:
-        lines.append("### Deciding factors across matches")
-        lines.append("")
-        for df in deciding_factors:
-            lines.append(f"- **{df['round']} match {df['match']}**: {df['factor']}")
-        lines.append("")
+                    factor = v["deciding_factor"][:240] + (
+                        "..." if len(v["deciding_factor"]) > 240 else ""
+                    )
+                    lines.append(
+                        f"- **{round_info['name']} match {match['id']}**: {factor}"
+                    )
+    lines.append("")
 
 report_path = output_dir / "final-report.md"
 report_path.write_text("\n".join(lines), encoding="utf-8")
