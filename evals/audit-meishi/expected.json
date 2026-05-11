@@ -1,0 +1,24 @@
+{
+  "name": "audit-meishi — Audit parser regression on meishi v4 audit",
+  "category": "audit",
+  "manual": false,
+  "assertions": [
+    {
+      "type": "audit_recommendation",
+      "audit_fixture": "fixtures/audit.md",
+      "verdict_fixture": "fixtures/verdict.json",
+      "expect": {
+        "recommendation": "PASS",
+        "model_recommendation": "PASS",
+        "threshold_recommendation": "PASS",
+        "aggregate": 36,
+        "min_score": 5,
+        "scores.verification_rigor": 6,
+        "scores.downgrade_consistency": 5,
+        "scores.evidence_density": 9,
+        "scores.voice_calibration": 9,
+        "scores.search_budget_use": 7
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "parser-meishi — Parser regression on meishi v4 verdict",
+  "category": "parser",
+  "manual": false,
+  "assertions": [
+    {
+      "type": "parser_extracts",
+      "fixture": "fixtures/verdict.md",
+      "rubric": "rubrics/balanced.yaml",
+      "expect": {
+        "winner": "B",
+        "differential_a": -4.5,
+        "differential_b": 1.0,
+        "score_winner": "B",
+        "grades.strategic_ceiling.a_grade": "Weak",
+        "grades.strategic_ceiling.b_grade": "Neutral",
+        "grades.wedge_and_market.a_grade": "Weak",
+        "grades.wedge_and_market.b_grade": "Neutral",
+        "grades.moat_and_trust.a_grade": "Weak",
+        "grades.moat_and_trust.b_grade": "Neutral",
+        "grades.distinctiveness.a_grade": "Weak",
+        "grades.distinctiveness.b_grade": "Strong",
+        "grades.execution_credibility.a_grade": "Strong",
+        "grades.execution_credibility.b_grade": "Neutral",
+        "searches_count": 3,
+        "no_search_marker": false
+      }
+    }
+  ]
+}

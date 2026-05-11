@@ -153,6 +153,46 @@ ceiling_risk = (
     or extract_section(verdict_text, "CEILING x RISK ASSESSMENT")
 )
 reasoning = extract_section(verdict_text, "REASONING")
+searches_performed_text = extract_section(verdict_text, "SEARCHES PERFORMED")
+
+# Parse the SEARCHES PERFORMED block into structured queries.
+# Expected format (per v0.4 judge prompt):
+#   "Query: <q> → Finding: <f>"  (one per line, possibly wrapped)
+# We're forgiving: any line matching `Query:` is captured, and `Finding:`
+# extends it. Empty results are recorded with a synthetic note.
+def parse_searches(block_text):
+    if not block_text:
+        return []
+    queries = []
+    current = None
+    for line in block_text.splitlines():
+        s = line.strip()
+        m = re.match(r"^[*\-]?\s*Query:\s*(.+?)(?:\s*[→\->]+\s*Finding:\s*(.+))?$", s, re.IGNORECASE)
+        if m:
+            if current:
+                queries.append(current)
+            current = {
+                "query": m.group(1).strip().rstrip('"\''),
+                "finding": (m.group(2) or "").strip(),
+            }
+            continue
+        # Continuation line — append to the last query's finding.
+        if current and s:
+            sep = " " if current["finding"] else ""
+            current["finding"] += sep + s
+    if current:
+        queries.append(current)
+    return queries
+
+searches_performed = parse_searches(searches_performed_text)
+
+# Detect "judge said no searches" patterns even when SEARCHES PERFORMED is
+# present but says "None" / "0 searches" — useful for audit scoring.
+no_search_marker = bool(re.search(
+    r"\b(None|0\s*(?:of\s*3|queries|searches))\b",
+    (searches_performed_text or "").split("\n", 1)[0] if searches_performed_text else "",
+    re.IGNORECASE,
+))
 
 result = {
     "verdict": f"Idea {winner_letter}",
@@ -164,6 +204,10 @@ result = {
     "deciding_factor": deciding_factor,
     "ceiling_risk": ceiling_risk,
     "reasoning": reasoning,
+    "searches_performed": searches_performed,
+    "searches_performed_raw": searches_performed_text,
+    "searches_count": len(searches_performed),
+    "no_search_marker": no_search_marker,
 }
 
 print(json.dumps(result, indent=2, ensure_ascii=False))

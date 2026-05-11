@@ -1,0 +1,76 @@
+{
+  "name": "smoke-render — Every prompt template renders without leaving placeholders",
+  "category": "smoke",
+  "manual": false,
+  "assertions": [
+    {
+      "type": "renders_clean",
+      "template": "prompts/defender.tmpl.md",
+      "env": {
+        "CONTEST_NAME": "test",
+        "ROUND_NAME": "test",
+        "ROUND_TYPE": "test",
+        "IDEA_NAME": "Idea X",
+        "IDEA_SPEC": "spec",
+        "OPPONENT_NAME": "Idea Y",
+        "OPPONENT_SPEC": "spec",
+        "RUBRIC_SUMMARY": "rubric",
+        "SHARED_CONTEXT": "ctx",
+        "OUTPUT_PATH": "/tmp/out.md"
+      },
+      "expect": {
+        "first_header_contains": "Defender brief",
+        "no_unsubstituted_placeholders": true
+      }
+    },
+    {
+      "type": "renders_clean",
+      "template": "prompts/judge.tmpl.md",
+      "env": {
+        "CONTEST_NAME": "test",
+        "ROUND_NAME": "test",
+        "IDEA_A_NAME": "A",
+        "IDEA_B_NAME": "B",
+        "DEFENDER_A_OUTPUT": "defense A",
+        "DEFENDER_B_OUTPUT": "defense B",
+        "RUBRIC_FULL": "rubric",
+        "SHARED_CONTEXT": "ctx",
+        "MAX_SCORE": "65"
+      },
+      "expect": {
+        "first_header_contains": "Judge brief",
+        "no_unsubstituted_placeholders": true
+      }
+    },
+    {
+      "type": "renders_clean",
+      "template": "prompts/judge-strict.tmpl.md",
+      "env": {
+        "CONTEST_NAME": "test",
+        "ROUND_NAME": "test",
+        "AUDIT_JUSTIFICATION": "audit said do better",
+        "SHARED_CONTEXT": "ctx",
+        "DEFENDER_A_OUTPUT": "defense A",
+        "DEFENDER_B_OUTPUT": "defense B",
+        "RUBRIC_FULL": "rubric"
+      },
+      "expect": {
+        "first_header_contains": "STRICT RE-JUDGE",
+        "no_unsubstituted_placeholders": true
+      }
+    },
+    {
+      "type": "renders_clean",
+      "template": "prompts/audit.tmpl.md",
+      "env": {
+        "CONTEST_NAME": "test",
+        "ROUND_NAME": "test",
+        "VERDICT_JSON": "{\"winner\": \"A\"}"
+      },
+      "expect": {
+        "first_header_contains": "Verdict audit",
+        "no_unsubstituted_placeholders": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "frontmatter-conventions — SKILL.md frontmatter is Anthropic-spec compliant",
+  "category": "frontmatter",
+  "manual": false,
+  "assertions": [
+    {
+      "type": "frontmatter_valid",
+      "file": "SKILL.md",
+      "expect": {
+        "name": "decision-battle-royale",
+        "name_max_chars": 64,
+        "name_pattern": "^[a-z0-9-]+$",
+        "has_description": true,
+        "description_max_chars": 1024,
+        "has_license": true,
+        "no_unknown_fields": true,
+        "description_contains_any": [
+          "decide between",
+          "which option is best",
+          "compare these ideas",
+          "second opinion",
+          "/decision-battle-royale"
+        ]
+      }
+    }
+  ]
+}

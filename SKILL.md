@@ -1,6 +1,6 @@
 ---
 name: decision-battle-royale
-description: Help the user decide between 2 or more ideas, options, plans, or strategies by running a structured single-elimination AI tournament. Each option is defended by an independent fresh-context Claude subagent in parallel; a separate fresh-context Claude subagent acts as a skeptical judge with WebSearch verification, and a third fresh-context audit subagent scores the judge's verdict quality and forces a strict re-judge on low scores. The orchestrator (you) never reads defenses or verdicts — only spawns subagents and runs bash scripts — so your conversation's framing cannot bias the result. Triggers on phrases like "decide between these", "which option is best", "compare these ideas", "second opinion on which to pick", "have agents debate", "battle these options", "score these against a rubric", "/decision-battle-royale", "/decision-battle", or the legacy "/battle-royale". Use when the user has 2 or more candidate ideas/specs (as files or paths) and wants a defensible, auditable verdict. Prefer the one-shot inline mode when the user just passes file paths. Bracket auto-builds with byes for non-powers-of-2 (N=3, 5, 6, 7, 9...); cost scales as N-1 matches × 3-4 subagents per match.
+description: Help the user decide between 2 or more ideas, options, plans, or strategies via a structured single-elimination AI tournament. Each option is defended by an independent fresh-context Claude subagent; a separate fresh-context judge picks each match with WebSearch verification; an audit subagent scores the verdict and forces a strict re-judge on low scores. The orchestrator never reads defenses or verdicts — only spawns subagents and runs bash scripts — so your conversation's framing cannot bias the result. Triggers on "decide between these", "which option is best", "compare these ideas", "second opinion on which to pick", "battle these options", "have agents debate", "/decision-battle-royale", "/decision-battle", or "/battle-royale". Use when the user has 2 or more candidate ideas/specs (as files or paths) and wants a defensible, auditable verdict. Prefer inline mode when paths are given. Bracket auto-builds with byes for non-powers-of-2.
 license: MIT
 ---
 
@@ -20,7 +20,7 @@ Use when the user has 2 or more candidate ideas/options/plans/strategies and wan
 - **Surfaces strong-form arguments** via adversarial defense — each option gets a zealous advocate
 - **Produces auditable results** — every prompt and response saved to disk, every WebSearch query logged
 
-Natural-language triggers: *"decide between these"*, *"which option is best"*, *"compare these ideas"*, *"second opinion on which to pick"*, *"battle these options"*, *"have agents debate"*, *"score these against a rubric"*, *"rank these specs"*, *"battle royale"*, *"/decision-battle-royale"*, *"/decision-battle"*, *"/battle-royale"* (legacy).
+Natural-language triggers: *"decide between these"*, *"which option is best"*, *"compare these ideas"*, *"second opinion on which to pick"*, *"battle these options"*, *"have agents debate"*, *"score these against a rubric"*, *"rank these specs"*, *"battle royale"*, *"/decision-battle-royale"*, *"/decision-battle"*, *"/battle-royale"*.
 
 **Bracket sizes:** any N ≥ 2 is supported. For non-powers-of-2 (N = 3, 5, 6, 7, 9, ...) the first contestants in input order get byes in round 1 so every contestant plays at most one round less than the most-active contestant. Cost scales as **N − 1 matches × 3 Claude subagents per match** (2 defenders + 1 judge). `quick-battle.sh` warns at N > 16 and refuses N > 32 — at that scale cull your shortlist first or use a different tool.
 
@@ -152,7 +152,7 @@ For each match in the current round:
    - Prompt: contents of the rendered prompt file
    - Description: `"Defender of <Idea Name>"`
 
-3. **Write-to-disk protocol (v0.7+, adopted from agent-review-panel)**: Each defender writes its own case to the path given in `OUTPUT_PATH` and returns ONLY (a) the path it wrote to and (b) a 100-word neutral summary. **You — the orchestrator — must not display or quote the defender's full case in your response.** The judge will read from disk in the next step.
+3. **Write-to-disk protocol**: Each defender writes its own case to the path given in `OUTPUT_PATH` and returns ONLY (a) the path it wrote to and (b) a 100-word neutral summary. **You — the orchestrator — must not display or quote the defender's full case in your response.** The judge will read from disk in the next step.
 
 4. **Verify the file was written** for each defender:
    ```bash
@@ -193,12 +193,11 @@ For each match:
    `"Your previous output failed format validation. The grade table must match the rubric criteria exactly. Output ONLY the five required sections."`
    Then re-parse. If it fails twice, **stop and report to the user**; do not proceed.
 
-### Step 4b — Audit phase (verdict quality check, v0.7+)
+### Step 4b — Audit phase (verdict quality check)
 
-The audit phase scores the *judge's verdict* on five quality axes
-(verification rigor, downgrade consistency, evidence density, voice
-calibration, search-budget use). This pattern is adapted from Anthropic's
-Bloom evals' BloomMetaJudge — narrowed to per-verdict auditing.
+The audit phase scores the *judge's verdict* on five quality axes:
+verification rigor, downgrade consistency, evidence density, voice
+calibration, and search-budget use.
 
 For each match's verdict:
 
@@ -306,7 +305,7 @@ when it's load-bearing (usually).
 | `~/.claude/skills/decision-battle-royale/prompts/defender.tmpl.md` | Defender prompt template (write-to-disk protocol) |
 | `~/.claude/skills/decision-battle-royale/prompts/judge.tmpl.md` | Judge prompt template (The Skeptic with WebSearch) |
 | `~/.claude/skills/decision-battle-royale/prompts/judge-strict.tmpl.md` | Strict re-judge template, used when audit RETRIES a verdict |
-| `~/.claude/skills/decision-battle-royale/prompts/audit.tmpl.md` | Meta-judge prompt (adapted from Anthropic Bloom's MetaJudge) |
+| `~/.claude/skills/decision-battle-royale/prompts/audit.tmpl.md` | Meta-judge prompt (scores verdict quality on 5 axes) |
 | `~/.claude/skills/decision-battle-royale/rubrics/balanced.yaml` | Default 5-criterion rubric mapped to investor decision logic |
 | `~/.claude/skills/decision-battle-royale/scripts/quick-battle.sh` | One-shot scaffold from inline idea file paths |
 | `~/.claude/skills/decision-battle-royale/scripts/init-battle.sh` | Scaffold a new battle directory with stub files |
@@ -331,17 +330,20 @@ when it's load-bearing (usually).
 |---|---|---|
 | `balanced.yaml` | 5 criteria mapped to a 5-step investor decision logic (Category & Ceiling → Wedge & Traction → Architecture & Moat → Trust → Execution) | Product/strategy idea selection |
 
-Each criterion is graded **Strong (+1)** / **Neutral (0)** / **Weak (−1)** with 2+ quoted proofs required and a verification status (✓ verified / ⚠ partial / ✗ unverified). Differential = Σ (grade × weight). The numeric 1-10 scoring used in v0.1 was replaced in v0.2 because LLMs collapse to a 6-8 gradient — the 3-grade system forces evidence-backed commitment.
+Each criterion is graded **Strong (+1)** / **Neutral (0)** / **Weak (−1)** with 2+ quoted proofs required and a verification status (✓ verified / ⚠ partial / ✗ unverified). Differential = Σ (grade × weight). Higher final differential wins.
 
 To add a new rubric, drop a YAML file in `rubrics/` matching the schema of `balanced.yaml`.
 
 ---
 
-## Current judge persona
+## Judge persona
 
-**The Skeptic** (since v0.4) + per-verdict audit + strict re-judge on
-failure (since v0.7). See `CHANGELOG.md` for the version history and the
-specific failure modes each version addressed.
+The judge is **The Skeptic** — blunt, evidence-obsessed, treats interpretive
+claims (*"cannibalizes," "structurally cannot ship," "has a moat"*) as
+unverified by default. Earns ✓ verified only via primary source, multiple
+independent confirmations, or WebSearch (budget: 3 queries per match).
+Unverified critical claims trigger mandatory grade downgrades.
 
-The legacy skill name `/battle-royale` continues to work as an alias for
-backward compatibility.
+After the judge produces a verdict, the audit subagent scores it on five
+quality axes. If aggregate falls below threshold, a strict re-judge runs
+with tighter requirements.
