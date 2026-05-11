@@ -1,5 +1,67 @@
 # Changelog
 
+## v0.6 — 2026-05-11 — Any N ≥ 2 contestants
+
+The 2-or-4 constraint was an artifact of the v0.1 hardcoded bracket logic,
+not a real limit. Lifted.
+
+### Why
+
+The bracket is a tree, not a magic number. Single-elimination over N
+contestants needs exactly N − 1 matches regardless of N, and byes for
+non-powers-of-2 are a well-understood pattern from real tournament sports.
+The only legitimate concerns at higher N are (a) cost — each match spawns
+3 Claude subagents — and (b) signal-to-noise of the final verdict when
+the bracket gets very deep. Both are warnings, not constraints.
+
+### What changed
+
+- **`scripts/advance.sh`** rewritten to build the bracket dynamically from
+  the contestant list. Single-elimination over any N ≥ 2. Round 1 has
+  `2^⌈log₂(N)⌉ − N` byes distributed to the first contestants in input
+  order; every round after round 1 has a power-of-2 entry count. Round
+  names follow standard tournament convention based on entry count: 2 →
+  "Final", 4 → "Semifinal", 8 → "Quarterfinal", 16 → "Round of 16",
+  otherwise "Round of N".
+
+- **`scripts/quick-battle.sh`** now accepts any number of idea files ≥ 2.
+  Warns at N > 16 (large run — many subagents) and refuses N > 32.
+  Generated `battle.yaml` no longer hardcodes round-1 pairings; advance.sh
+  builds them from contestant input order.
+
+- **`scripts/init-battle.sh`** adds `--contestants N` (default 4, any
+  N ≥ 2 supported). Stub files generated dynamically.
+
+- **`battle.yaml` schema**: `bracket.round-1` is now the preferred key for
+  explicit round-1 pairings (works at any N). The legacy `bracket.semifinals`
+  key from v0.1-v0.5 is still honored for back-compat (treated as a
+  round-1 override).
+
+### Migration
+
+- Existing v0.5 battles run unchanged — both the auto-generated YAML (no
+  bracket pairings specified) and any hand-edited YAML with the legacy
+  `bracket.semifinals` block continue to work.
+
+- No defender or judge prompt changes. No rubric changes.
+
+### Validation
+
+End-to-end smoke tests passed for:
+
+- **N=2:** single Final match (back-compat).
+- **N=3:** 1 bye + 1 round-1 match → Final (2 matches total).
+- **N=4:** Semifinal + Final (3 matches), both default pairing (1v2, 3v4)
+  and legacy `semifinals:` override (1v4, 2v3).
+- **N=5:** 3 byes + 1 round-1 match → Semifinal → Final (4 matches total).
+- **N=8:** Quarterfinal → Semifinal → Final (7 matches total, no byes).
+
+Each test confirmed correct round naming, correct propagation of byes
+into round 2, correct winner-resolution between rounds, and the champion
+declared at the end.
+
+---
+
 ## v0.5 — 2026-05-11 — Inline mode + rename to `decision-battle-royale`
 
 **Renames the skill** and **adds a low-friction invocation path**. No breaking
