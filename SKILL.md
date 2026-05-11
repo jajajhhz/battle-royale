@@ -1,25 +1,27 @@
 ---
 name: battle-royale
-description: Run an adversarial AI-judged contest of ideas, plans, or strategies. Use when the user wants to compare 2 or 4 candidate ideas through structured defender + judge subagents with a calibrated rubric. Each idea is defended by an independent Claude subagent in parallel; a separate Claude subagent judges with no shared context. The orchestration is bash-driven and deterministic — the orchestrator only spawns subagents and runs scripts; it does not interpret defenses or pick winners.
+description: Help the user decide between 2 or 4 ideas, options, plans, or strategies by running a structured AI tournament. Each option is defended by an independent fresh-context Claude subagent in parallel; a separate fresh-context Claude subagent acts as a skeptical judge with WebSearch verification. The orchestrator (you) never reads defenses or verdicts — only spawns subagents and runs bash scripts — so your conversation's framing cannot bias the result. Triggers on phrases like "decide between these", "which option is best", "compare these ideas", "second opinion on which to pick", "have agents debate", "battle these options", "score these against a rubric", or "/battle-royale". Use when the user has 2-4 candidate ideas/specs and wants a defensible, auditable verdict.
 ---
 
-# Battle Royale — Idea Contest Orchestrator
+# Battle Royale — Decide between options with fresh-context AI judges
 
-A skill for running adversarial AI-judged contests of product ideas, plans, or strategies — with structurally enforced fairness.
+A skill for deciding between 2 or 4 candidate ideas, options, plans, or strategies — through a structured tournament where each option gets a zealous AI advocate and a separate fresh-context AI judge picks the winner.
 
-**Core principle:** the orchestration flow is deterministic. The orchestrator (Claude in this session) only does two things in the contest itself: (1) spawn subagents with prompts, (2) run bash scripts. Defending ideas and judging are done by **fresh-context Claude subagents**. Score parsing, bracket advancement, and reporting are done by **bash scripts**. **Do not interpret defenses or judgments yourself.**
+**Core principle:** the orchestration flow is deterministic. The orchestrator (Claude in this session) only does two things in the contest itself: (1) spawn subagents with prompts, (2) run bash scripts. Defending ideas and judging are done by **fresh-context Claude subagents**. Grade parsing, bracket advancement, and reporting are done by **bash scripts**. **Do not interpret defenses or judgments yourself.** This is what eliminates orchestrator bias structurally.
 
 ---
 
 ## When to use
 
-Use when the user has 2 or 4 candidate ideas/plans/strategies and wants a structured comparison that:
-- Eliminates orchestrator bias (the session that's helping the user is not the one judging)
-- Forces evidence-based scoring (judges grounded in shared context, not rhetoric)
-- Surfaces strong-form arguments via adversarial defense (each idea gets a zealous advocate)
-- Produces auditable results (every prompt + response saved to disk)
+Use when the user has 2 or 4 candidate ideas/options/plans/strategies and wants a structured comparison that:
+- **Avoids self-evaluation bias** — the session that helped generate the options is not the one judging
+- **Forces evidence-based grading** — the judge defaults every interpretive claim to "unverified" and uses WebSearch to upgrade or downgrade
+- **Surfaces strong-form arguments** via adversarial defense — each option gets a zealous advocate
+- **Produces auditable results** — every prompt and response saved to disk, every WebSearch query logged
 
-Triggers: user says "battle royale", "score these ideas", "have agents debate", "rank these options against [rubric]", "/battle-royale".
+Natural-language triggers: *"decide between these"*, *"which option is best"*, *"compare these ideas"*, *"second opinion on which to pick"*, *"battle these options"*, *"have agents debate"*, *"score these against a rubric"*, *"rank these specs"*, *"battle royale"*, *"/battle-royale"*.
+
+Not a fit for: single-option go/no-go decisions, decisions with >4 candidates (cull first), or decisions where the user doesn't have written specs yet (have them write the specs first — the act of writing often reveals the answer).
 
 ## Commands
 
@@ -193,6 +195,23 @@ Output `<dir>/output/final-report.md`. Read it back and present the headline res
 
 | Rubric | Criteria | Use case |
 |---|---|---|
-| `balanced.yaml` | 5 criteria mapped to a 5-step investor decision logic (Category & Ceiling → Wedge & Traction → Architecture & Moat → Trust → Execution) | Product idea selection |
+| `balanced.yaml` | 5 criteria mapped to a 5-step investor decision logic (Category & Ceiling → Wedge & Traction → Architecture & Moat → Trust → Execution) | Product/strategy idea selection |
+
+Each criterion is graded **Strong (+1)** / **Neutral (0)** / **Weak (−1)** with 2+ quoted proofs required and a verification status (✓ verified / ⚠ partial / ✗ unverified). Differential = Σ (grade × weight). The numeric 1-10 scoring used in v0.1 was replaced in v0.2 because LLMs collapse to a 6-8 gradient — the 3-grade system forces evidence-backed commitment.
 
 To add a new rubric, drop a YAML file in `rubrics/` matching the schema of `balanced.yaml`.
+
+---
+
+## Version note (v0.4 — "The Skeptic" judge)
+
+As of v0.4 the judge persona is **The Skeptic** — a blunt, evidence-obsessed critic who:
+
+- Treats shared context as **authored and possibly biased**, not ground truth
+- Defaults interpretive claims ("cannibalizes," "structurally cannot ship," "moat," "depends on") to **⚠ partial**
+- Earns **✓ verified** only via primary source, multiple independent confirmations, or WebSearch (≤3 queries per match)
+- Applies a **mandatory downgrade** when a critical interpretive claim is unverifiable: Strong with critical ⚠ → Neutral; Weak with critical ⚠ → Neutral
+
+The judge output now requires a `## SEARCHES PERFORMED` section listing every WebSearch query + finding, or explicitly stating which interpretive claims were accepted on shared-context-only trust.
+
+See `CHANGELOG.md` for the full evolution from v0.1 (numeric scoring) through v0.4.

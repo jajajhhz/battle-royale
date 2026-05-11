@@ -1,80 +1,68 @@
 # 🥊 battle-royale
 
-**Run adversarial AI-judged contests of ideas, plans, or strategies — with structurally enforced fairness.**
+**Decide between 2 or 4 ideas, plans, or strategies — by having independent fresh-context AI agents argue and judge them for you.**
 
-A reusable Claude Code skill that compares 2 or 4 candidate ideas through a deterministic bracket. Each idea is defended by an independent Claude subagent in parallel; a separate Claude subagent judges the matchup with no shared context. The orchestrator only spawns subagents and runs scripts — it never interprets defenses or picks winners.
+A [Claude Code](https://claude.com/claude-code) skill that turns "which option should I pick?" into a structured tournament: each option gets its own zealous AI advocate, then a *separate* AI judge with no prior context picks a winner using a calibrated rubric and primary-source verification.
 
----
+Use it when you're stuck between options and want a **second opinion that isn't biased by the conversation you've already had.**
 
-## Why this exists
-
-When you ask an LLM "which of these ideas is best?", you get a single judgment from a single agent that has seen the whole conversation. That judgment is biased by:
-
-- Whatever framing the orchestrator (you or your AI helper) introduced
-- Order effects (the last idea discussed often wins)
-- Anchoring on the most recent rhetoric
-- A single-pass evaluation that doesn't pressure-test each idea adversarially
-
-`battle-royale` enforces a different shape:
-
-1. **Fresh-context defenders.** Each idea is defended by a separate Claude subagent that only sees its own spec, the opponent's spec, the rubric, and shared context. The defender can't see who else has been involved or what the orchestrator thinks.
-2. **Adversarial debate.** Defenders are instructed to argue zealously, attack opponents' weakest rubric criteria, and sharpen their own positioning.
-3. **Independent fresh-context judge.** A separate subagent reads only the rubric, shared context, and both defenses. It scores each criterion on a calibrated 1-10 scale and writes a structured verdict.
-4. **Deterministic parsing.** A bash script parses the verdict via regex against the rubric's criterion names. Scores are recomputed independently — the judge's stated total isn't trusted, only its per-criterion scores.
-5. **Bash-driven orchestration.** No agent decides flow; bash scripts do. Every prompt sent and every response received is saved verbatim to disk for audit.
-
-The result: an evidence-based ranking that is reproducible, auditable, and resists orchestrator bias.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Skill: Claude Code](https://img.shields.io/badge/skill-Claude_Code-purple.svg)](https://docs.claude.com/en/docs/claude-code)
+[![Version](https://img.shields.io/badge/version-v0.4-blue.svg)](CHANGELOG.md)
 
 ---
 
-## Architecture
+## Why you'd want this
+
+You've been brainstorming with Claude. Now you have 2-4 candidate ideas — product directions, architectural choices, naming options, vendor shortlists, hiring final-rounds, anything. You ask "which is best?" and get a confident answer.
+
+**The problem:** that answer is from the same session that helped you generate the ideas. It's already anchored to your framing, the last thing you said, and whatever rhetoric stuck around.
+
+**What `battle-royale` does instead:**
+
+1. Spawns a fresh Claude subagent for **each option** to defend it adversarially — they only see their own spec, the opponent's spec, and shared context. Not your conversation.
+2. Spawns a *separate* fresh judge subagent with no spec access — it only sees what defenders surface. The judge has WebSearch and a strict mandate to verify interpretive claims against primary sources.
+3. Records every prompt and response to disk. The orchestrator (the session you're talking to) **cannot read the defenses or the verdict** — only spawn the agents and run parse scripts. Bias is structurally impossible.
+
+The result: a defensible, auditable verdict for a decision that matters.
+
+---
+
+## What you get
+
+A real example verdict from a head-to-head match between two product ideas:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  User runs:  /battle-royale run <dir>                           │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Orchestrator (Claude in this session, following SKILL.md)     │
-│                                                                 │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │ Phase: defenders (PARALLEL)                            │    │
-│   │   - Render each defender prompt via render-prompt.sh   │    │
-│   │   - Spawn N Claude subagents in parallel               │    │
-│   │   - Save verbatim outputs to disk                      │    │
-│   └────────────────────────────────────────────────────────┘    │
-│                          │                                      │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │ Phase: judge                                           │    │
-│   │   - Render judge prompt with both defenses + rubric    │    │
-│   │   - Spawn fresh-context Claude subagent (the judge)    │    │
-│   │   - Save verdict.md verbatim                           │    │
-│   │   - parse-verdict.sh → verdict.json (regex, deterministic)│  │
-│   │   - On parse failure: retry once with format reminder  │    │
-│   └────────────────────────────────────────────────────────┘    │
-│                          │                                      │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │ Phase: advance                                         │    │
-│   │   - Read all match verdicts                            │    │
-│   │   - Determine winners deterministically                │    │
-│   │   - Write next-round bracket or mark complete          │    │
-│   └────────────────────────────────────────────────────────┘    │
-│                          │                                      │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │ Phase: summary                                         │    │
-│   │   - Walk output tree, render markdown report           │    │
-│   └────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
+## VERDICT: Idea B wins
+
+| Criterion              | Wt  | Idea A | Idea B |
+|------------------------|-----|--------|--------|
+| 1. Strategic ceiling   | 1.5 | Weak   | Neutral|
+| 2. Wedge & market      | 1.5 | Weak   | Neutral|
+| 3. Moat & trust        | 1.5 | Weak   | Neutral (DOWNGRADED — see below) |
+| 4. Distinctiveness     | 1.0 | Weak   | Strong |
+| 5. Execution           | 1.0 | Strong | Neutral|
+| DIFFERENTIAL           |     | -4.5   | +1.0   |
+
+## SEARCHES PERFORMED
+Query: "Eight 8card business export feature pricing" → Finding: Eight already
+gates CSV export behind ¥600/mo Premium tier. The "structural cannibalization"
+claim that propped up both sides' moat collapses under primary-source check.
+
+## REASONING
+Both sides leaned on the same load-bearing claim ("Eight cannibalizes its
+feed"). WebSearch killed it. Mandatory downgrade applied. B still wins —
+not because the moat held, but because Distinctiveness is the only grade
+the verification machinery didn't touch...
 ```
 
-**Key invariant:** the orchestrator never reads defender content or interprets judge content. It only spawns subagents and runs bash scripts. This is what eliminates orchestrator bias structurally.
+Every grade is backed by specific quoted proofs. Every WebSearch query is logged. Every prompt and response is saved verbatim to disk so you can audit *why* the verdict went the way it did.
 
 ---
 
-## Installation
+## Quick start
 
-This is a Claude Code skill. Install by symlinking or copying into `~/.claude/skills/`:
+### 1. Install (one-time)
 
 ```bash
 git clone https://github.com/jajajhhz/battle-royale.git
@@ -82,91 +70,98 @@ ln -s "$(pwd)/battle-royale" ~/.claude/skills/battle-royale
 chmod +x battle-royale/scripts/*.sh
 ```
 
-Verify it's installed:
+In your next Claude Code session, the skill is auto-discoverable.
 
-```bash
-ls ~/.claude/skills/battle-royale/SKILL.md
+### 2. Try the included smoke test (3 minutes)
+
+```text
+/battle-royale run ~/.claude/skills/battle-royale/examples/vanilla-vs-chocolate
 ```
 
-In your next Claude Code session, the `battle-royale` skill should be discoverable via the Skill tool.
+Runs a 2-contestant ice-cream battle end-to-end. Verifies your install works and shows you what a full output tree looks like.
 
-### Requirements
+### 3. Run your real decision
 
-- macOS or Linux
-- `bash` 4+
-- `python3` (for YAML/regex parsing in scripts)
-- Claude Code (the orchestrator runs inside Claude Code; defenders and judges are spawned via the Agent tool)
+```text
+/battle-royale init ~/work/my-decision --name "Product launch options"
+```
+
+Then fill in:
+- `~/work/my-decision/ideas/idea-{1..4}.md` — one full spec per option
+- `~/work/my-decision/context/shared-context.md` — the market evidence the judge will ground claims in
+
+And run:
+
+```text
+/battle-royale run ~/work/my-decision
+```
+
+That's it. The skill walks through defenders → judge → bracket advancement → final report.
 
 ---
 
-## Usage
+## When to use this
 
-### Quick start: run a battle from scratch
+**Good fits:**
+- Picking between 2-4 product directions
+- Architectural decisions with clear trade-offs (monolith vs microservices, framework A vs B)
+- Naming, branding, or positioning options
+- Vendor shortlists
+- Hiring final-round comparisons
+- Any decision where "ask Claude" and "ask Codex/Gemini" give you different answers and you want a structured tiebreaker
 
-```bash
-# 1. Scaffold a battle directory
-bash ~/.claude/skills/battle-royale/scripts/init-battle.sh ~/work/my-battle --name "My Decision"
+**Not a fit:**
+- Single-option go/no-go decisions (use a planning tool)
+- Decisions with >4 candidates (the bracket only handles 2 or 4; cull first)
+- Decisions where you don't have written specs for each option (write them first — the act of writing is often what reveals the winner)
 
-# 2. Edit the battle
-vim ~/work/my-battle/battle.yaml          # set contestant names, pairings
-vim ~/work/my-battle/ideas/idea-1.md      # write each contestant's full spec
-vim ~/work/my-battle/ideas/idea-2.md
-vim ~/work/my-battle/ideas/idea-3.md
-vim ~/work/my-battle/ideas/idea-4.md
-vim ~/work/my-battle/context/shared-context.md  # market evidence + competitor table
+Natural-language invocations the skill responds to: *"battle these ideas,"* *"have agents debate these options,"* *"decide between these,"* *"second opinion on which is best,"* *"compare these specs."*
 
-# 3. From Claude Code, invoke the skill
-# /battle-royale run ~/work/my-battle
-```
+---
 
-### Or try the included smoke test
+## How it differs from just asking Claude
 
-```bash
-# From Claude Code:
-# /battle-royale run ~/.claude/skills/battle-royale/examples/vanilla-vs-chocolate
-```
-
-The smoke test runs a 2-contestant battle (Vanilla vs Chocolate ice cream) end-to-end in ~3 minutes and verifies every component works.
-
-### Commands
-
-```
-/battle-royale init <dir> [--name "Name"] [--rubric balanced]
-    Scaffold a new battle directory with template files
-
-/battle-royale run [<dir>]
-    Run a battle end-to-end (defenders → judge → advance → summary)
-
-/battle-royale rerun <dir> --rubric <new>
-    Re-judge existing defender outputs under a different rubric.
-    Cheap rubric-sensitivity test — defenders are NOT re-spawned.
-
-/battle-royale status [<dir>]
-    Show current state (which round, which matches pending)
-
-/battle-royale summary [<dir>]
-    Render the final report
-```
+| Naive approach (ask Claude in your session) | battle-royale |
+|---|---|
+| One AI judges all options in one pass | Separate AI defenders + separate fresh-context judge per match |
+| Judgment happens in your conversation context | Judgment happens in independent subagents — your framing can't leak |
+| Order effects bias the result | Each defender sees only its spec + the opponent's spec |
+| You can't tell why an idea won | Every prompt and response is saved; criterion-by-criterion grades with cited proofs explain the verdict |
+| Rhetoric beats evidence | Judge defaults to "unverified" on interpretive claims; primary-source WebSearch is required to upgrade to "verified"; unverified claims trigger mandatory grade downgrades |
+| Re-running with a tweaked rubric requires redoing everything | `rerun` re-judges existing defenses without re-spawning defenders |
 
 ---
 
 ## The default rubric
 
-The included `rubrics/balanced.yaml` evaluates ideas against a 5-step investor decision logic:
+`rubrics/balanced.yaml` evaluates ideas against a 5-step decision logic borrowed from investor evaluation patterns:
 
-| Step | Criterion | Weight |
+| Criterion | Weight | What it measures |
 |---|---|---|
-| 1 — Category & ceiling | Strategic ceiling | 1.5 |
-| 2 — Wedge & traction | Wedge & market evidence | 1.5 |
-| 3+4 — Architecture & moat + Trust | Moat & trust posture | 1.5 |
-| (cross-cutting) | Distinctiveness | 1.0 |
-| 5 — Execution credibility | Execution credibility | 1.0 |
+| Strategic ceiling | 1.5 | Is the category big enough? Direct comps at the exact thesis? |
+| Wedge & market evidence | 1.5 | Sharp narrow entry + validated demand + competitor gap incumbents won't fill |
+| Moat & trust posture | 1.5 | Multiple compounding moats OR a structural moat incumbents architecturally cannot copy |
+| Distinctiveness | 1.0 | Memorable refusal manifesto, defining design choices, passes the show-stranger-24h test |
+| Execution credibility | 1.0 | Solo-buildable with founder's existing skills, kill-gates defined |
 
-Total weight: 6.5. Maximum score: 65 per match.
+Each criterion is graded **Strong (+1)** / **Neutral (0)** / **Weak (−1)** with 2+ specific quoted proofs required. Differential = Σ (grade × weight). Higher wins.
 
-Each criterion has a calibrated 1/4/7/10 anchor scale that defines what each score means. This prevents drift across judges and runs.
+**Authoring your own rubric:** drop a YAML file in `rubrics/` matching the schema in `balanced.yaml`. Different decisions need different criteria — code reviews, vendor selection, hiring panels, naming, architectural choices all have natural rubric structures.
 
-You can author your own rubric by dropping a YAML file in `rubrics/` matching the schema. See `rubrics/balanced.yaml` for the exact structure.
+---
+
+## The skeptical judge (v0.4)
+
+In v0.4 the judge persona was rewritten as **"The Skeptic"** — a blunt, evidence-obsessed critic with explicit voice rules:
+
+- Treats shared context as **authored and possibly biased**, not ground truth
+- Defaults every interpretive claim ("X cannibalizes Y," "X structurally cannot ship Z," "X has a moat") to **⚠ partial verification**
+- Must earn **✓ verified** via primary source, multiple independent confirmations, or WebSearch (≤3 queries per match)
+- **Mandatory downgrade rule**: if a critical interpretive claim is unverifiable, the grade it props up drops one level (Strong→Neutral, Weak→Neutral)
+
+This catches a common failure mode where defender rhetoric and synthesized "shared context" repeat the same interpretive phrase ("X cannibalizes its feed"), and the judge treats the echo as corroboration. v0.4's validation pass on a real product battle showed WebSearch disproving exactly this kind of laundered claim — same verdict survived, but for a more honest reason.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full evolution.
 
 ---
 
@@ -174,94 +169,75 @@ You can author your own rubric by dropping a YAML file in `rubrics/` matching th
 
 ```
 battle-royale/
-├── SKILL.md                    # Claude Code skill definition (procedural orchestration)
-├── README.md                   # this file (humans)
-├── LICENSE                     # MIT
+├── SKILL.md                    # Claude Code skill definition
+├── README.md                   # this file
+├── CHANGELOG.md                # v0.1 → v0.4 evolution
 ├── prompts/
-│   ├── defender.tmpl.md        # defender prompt template ({PLACEHOLDERS})
-│   └── judge.tmpl.md           # judge prompt template
+│   ├── defender.tmpl.md        # zealous-advocate prompt
+│   └── judge.tmpl.md           # The Skeptic prompt
 ├── rubrics/
-│   └── balanced.yaml           # default 5-criterion rubric
-├── scripts/
-│   ├── render-prompt.sh        # substitute placeholders from env vars (Python-backed)
-│   ├── parse-verdict.sh        # regex-extract scores from judge verdict → JSON
-│   ├── advance.sh              # determine winners, write next-round config
-│   ├── summary.sh              # generate final markdown report
-│   └── init-battle.sh          # scaffold a new battle directory
+│   └── balanced.yaml           # 5-criterion default rubric
+├── scripts/                    # bash orchestration (deterministic)
+│   ├── init-battle.sh
+│   ├── render-prompt.sh
+│   ├── parse-verdict.sh
+│   ├── advance.sh
+│   └── summary.sh
 └── examples/
-    └── vanilla-vs-chocolate/   # 2-contestant smoke test (ice cream)
-        ├── battle.yaml
-        ├── ideas/
-        ├── context/
-        └── (output/ created at runtime)
+    └── vanilla-vs-chocolate/   # 2-contestant smoke test
 ```
 
-A user-created battle directory looks like:
+A user-created decision looks like:
 
 ```
-my-battle/
-├── battle.yaml                 # config (contestants, rubric, format, pairings)
-├── ideas/
-│   ├── idea-1.md               # full spec for contestant 1
-│   ├── idea-2.md
-│   └── ...
-├── context/
-│   └── shared-context.md       # market evidence, competitor table
-└── output/                     # generated; auditable; do not edit by hand
-    ├── meta.json
+my-decision/
+├── battle.yaml                 # config — contestants, rubric, format
+├── ideas/idea-{1..4}.md        # one spec per option (you write these)
+├── context/shared-context.md   # market evidence (you write this)
+└── output/                     # generated; never edit by hand
     ├── state.json
-    ├── round-1/
-    │   ├── bracket.json
-    │   └── match-A/
-    │       ├── prompts/        # exact prompts sent to subagents
-    │       ├── defender-1.md   # subagent outputs (verbatim)
-    │       ├── defender-3.md
-    │       ├── verdict.md      # judge's raw output
-    │       └── verdict.json    # parsed scores
+    ├── round-1/match-A/
+    │   ├── defender-1.md       # zealous defense (verbatim subagent output)
+    │   ├── defender-2.md
+    │   ├── verdict.md          # judge's reasoned verdict
+    │   └── verdict.json        # parsed grades + differential
     └── final-report.md
 ```
 
 ---
 
-## How it differs from naive AI ranking
+## Requirements
 
-| Naive approach | battle-royale |
-|---|---|
-| Single AI judges all ideas in one pass | Separate AI defenders + separate fresh-context judge per match |
-| Ranking happens in conversation context | Ranking happens via deterministic bash scripts on saved files |
-| Order effects bias the result | Each defender sees only its spec + opponent's spec |
-| Can't tell why an idea won | Every prompt and response is saved; criterion-by-criterion scores explain the verdict |
-| Rubric drifts mid-evaluation | Rubric is a YAML file with calibrated 1/4/7/10 anchors |
-| Re-running with a tweaked rubric requires regenerating everything | `rerun` re-judges existing defenses without re-spawning defenders |
-| Rhetoric beats evidence | Judges are required to cite shared context for market/moat criteria |
+- macOS or Linux
+- `bash` 4+
+- `python3` (for YAML / regex parsing inside scripts)
+- [Claude Code](https://claude.com/claude-code) (the orchestrator runs inside Claude Code; defenders and judges are spawned via the Agent tool)
 
 ---
 
-## Adapted from the harness pattern
+## Inspired by the harness pattern
 
-This skill is modeled on Anthropic's [harness design pattern for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps), adapted for adversarial decision-making. The harness pattern's core principles — fresh context for evaluation, file-based handoffs, deterministic orchestration — translate directly to a battle royale where:
+This skill is modeled on Anthropic's [harness design pattern for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps), adapted for adversarial decision-making:
 
-- **Generator** → **Defender** (zealously argues for one idea)
-- **Evaluator** → **Judge** (scores against a calibrated rubric)
-- **Sprint contract** → **Match** (which two ideas, which rubric)
-- **Loop until pass** → **Single-shot per match** (winner declared, advance bracket)
+- **Generator → Defender** (zealously argues for one option)
+- **Evaluator → Judge** (grades against the rubric, verifies via WebSearch)
+- **Fresh context for evaluation** — the session that helped generate doesn't judge
 
-If you build implementation harnesses, this is the same architectural shape applied to product/strategy decisions instead of code shipping.
+If you build implementation harnesses, this is the same architectural shape applied to product, strategy, and architectural decisions instead of code shipping.
 
 ---
 
 ## Contributing
 
-Author your own rubric in `rubrics/`, follow the schema in `balanced.yaml`. Different decision domains benefit from different criteria — code review choices, vendor selection, hiring panel simulation, architectural decisions all have their own structure.
-
 PRs welcome for:
-- Additional rubrics (with calibrated anchors)
-- Bracket size variants (currently 2 or 4 contestants; 8 is a natural extension)
-- Output renderers (HTML report, CSV scoreboard, etc.)
-- All-vs-all format alongside the bracket format
+
+- **New rubrics** (with calibrated Strong/Neutral/Weak anchors) — naming, architectural choices, vendor selection, hiring panels all benefit from purpose-built rubrics
+- **Output renderers** — HTML reports, CSV scoreboards, Slack-friendly summaries
+- **Bracket size variants** — 8-contestant bracket, double-elimination
+- **All-vs-all format** — alongside the current bracket format
 
 ---
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).
