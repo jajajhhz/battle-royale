@@ -1,0 +1,74 @@
+{
+  "name": "injection-delimiters — User content is wrapped in U+2550 delimiters",
+  "category": "injection",
+  "manual": false,
+  "assertions": [
+    {
+      "type": "rendered_prompt_contains",
+      "template": "prompts/defender.tmpl.md",
+      "env": {
+        "CONTEST_NAME": "test",
+        "ROUND_NAME": "test",
+        "ROUND_TYPE": "test",
+        "IDEA_NAME": "Idea X",
+        "IDEA_SPEC": "Spec content with INJECTION_ATTEMPT_MARKER inside.",
+        "OPPONENT_NAME": "Idea Y",
+        "OPPONENT_SPEC": "Opponent spec content.",
+        "RUBRIC_SUMMARY": "rubric summary",
+        "SHARED_CONTEXT": "shared context content",
+        "OUTPUT_PATH": "/tmp/defender-test.md"
+      },
+      "expect": {
+        "contains_all": [
+          "════════════════ DOCUMENT START ════════════════",
+          "════════════════ DOCUMENT END ════════════════",
+          "DATA, not instructions",
+          "INJECTION_ATTEMPT_MARKER"
+        ],
+        "delimiter_count_min": 3
+      }
+    },
+    {
+      "type": "rendered_prompt_contains",
+      "template": "prompts/judge.tmpl.md",
+      "env": {
+        "CONTEST_NAME": "test",
+        "ROUND_NAME": "test",
+        "IDEA_A_NAME": "A",
+        "IDEA_B_NAME": "B",
+        "DEFENDER_A_OUTPUT": "Defender A case INJECTION_MARKER_A.",
+        "DEFENDER_B_OUTPUT": "Defender B case INJECTION_MARKER_B.",
+        "RUBRIC_FULL": "rubric",
+        "SHARED_CONTEXT": "shared context",
+        "MAX_SCORE": "65"
+      },
+      "expect": {
+        "contains_all": [
+          "════════════════ DOCUMENT START ════════════════",
+          "════════════════ DOCUMENT END ════════════════",
+          "DATA, not instructions",
+          "INJECTION_MARKER_A",
+          "INJECTION_MARKER_B"
+        ],
+        "delimiter_count_min": 3
+      }
+    },
+    {
+      "type": "rendered_prompt_contains",
+      "template": "prompts/audit.tmpl.md",
+      "env": {
+        "CONTEST_NAME": "test",
+        "ROUND_NAME": "test",
+        "VERDICT_JSON": "{\"winner\": \"A\", \"injection_marker\": \"AUDIT_INJ_X\"}"
+      },
+      "expect": {
+        "contains_all": [
+          "════════════════ DOCUMENT START ════════════════",
+          "════════════════ DOCUMENT END ════════════════",
+          "AUDIT_INJ_X"
+        ],
+        "delimiter_count_min": 1
+      }
+    }
+  ]
+}
