@@ -1,14 +1,14 @@
-# 🥊 battle-royale
+# 🥊 Decision Battle Royale
 
 **Decide between 2 or 4 ideas, plans, or strategies — by having independent fresh-context AI agents argue and judge them for you.**
 
-A [Claude Code](https://claude.com/claude-code) skill that turns "which option should I pick?" into a structured tournament: each option gets its own zealous AI advocate, then a *separate* AI judge with no prior context picks a winner using a calibrated rubric and primary-source verification.
+A [Claude Code](https://claude.com/claude-code) skill (`/decision-battle-royale`) that turns "which option should I pick?" into a structured tournament: each option gets its own zealous AI advocate, then a *separate* AI judge with no prior context picks a winner using a calibrated rubric and primary-source verification.
 
 Use it when you're stuck between options and want a **second opinion that isn't biased by the conversation you've already had.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Skill: Claude Code](https://img.shields.io/badge/skill-Claude_Code-purple.svg)](https://docs.claude.com/en/docs/claude-code)
-[![Version](https://img.shields.io/badge/version-v0.4-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.5-blue.svg)](CHANGELOG.md)
 
 ---
 
@@ -18,7 +18,7 @@ You've been brainstorming with Claude. Now you have 2-4 candidate ideas — prod
 
 **The problem:** that answer is from the same session that helped you generate the ideas. It's already anchored to your framing, the last thing you said, and whatever rhetoric stuck around.
 
-**What `battle-royale` does instead:**
+**What `decision-battle-royale` does instead:**
 
 1. Spawns a fresh Claude subagent for **each option** to defend it adversarially — they only see their own spec, the opponent's spec, and shared context. Not your conversation.
 2. Spawns a *separate* fresh judge subagent with no spec access — it only sees what defenders surface. The judge has WebSearch and a strict mandate to verify interpretive claims against primary sources.
@@ -28,9 +28,30 @@ The result: a defensible, auditable verdict for a decision that matters.
 
 ---
 
+## Use it in one line
+
+Once installed, just pass the markdown files for each option directly to the slash command:
+
+```text
+/decision-battle-royale decide between ~/specs/option-a.md and ~/specs/option-b.md
+```
+
+That's it. The skill auto-extracts contestant names from the file titles, scaffolds a battle directory, spawns the defenders in parallel, spawns the skeptical judge, and reports the verdict — all without you authoring a `battle.yaml` or filling in stub files.
+
+**With four contestants and shared market context:**
+
+```text
+/decision-battle-royale battle these: option-a.md option-b.md option-c.md option-d.md
+context is market-research.md, name it "Q3 product launch options"
+```
+
+The skill responds to natural language — *"compare these specs,"* *"which option is best,"* *"have agents debate these,"* *"second opinion on which to pick"* — not just the literal slash command.
+
+---
+
 ## What you get
 
-A real example verdict from a head-to-head match between two product ideas:
+A real verdict from a head-to-head match between two product ideas:
 
 ```
 ## VERDICT: Idea B wins
@@ -60,43 +81,59 @@ Every grade is backed by specific quoted proofs. Every WebSearch query is logged
 
 ---
 
-## Quick start
-
-### 1. Install (one-time)
+## Install (one-time)
 
 ```bash
-git clone https://github.com/jajajhhz/battle-royale.git
-ln -s "$(pwd)/battle-royale" ~/.claude/skills/battle-royale
-chmod +x battle-royale/scripts/*.sh
+git clone https://github.com/jajajhhz/battle-royale.git decision-battle-royale
+ln -s "$(pwd)/decision-battle-royale" ~/.claude/skills/decision-battle-royale
+chmod +x decision-battle-royale/scripts/*.sh
 ```
 
-In your next Claude Code session, the skill is auto-discoverable.
+In your next Claude Code session the skill is auto-discoverable as `/decision-battle-royale` (the legacy `/battle-royale` alias still works).
 
-### 2. Try the included smoke test (3 minutes)
+### Try the smoke test
 
 ```text
-/battle-royale run ~/.claude/skills/battle-royale/examples/vanilla-vs-chocolate
+/decision-battle-royale run ~/.claude/skills/decision-battle-royale/examples/vanilla-vs-chocolate
 ```
 
-Runs a 2-contestant ice-cream battle end-to-end. Verifies your install works and shows you what a full output tree looks like.
+Runs a 2-contestant ice-cream battle end-to-end in ~3 minutes. Verifies install and shows you what a full output tree looks like.
 
-### 3. Run your real decision
+---
+
+## Two ways to run a battle
+
+### 1. **Inline mode** — fastest, recommended
+
+You already have each option written up as a `.md` file. Just point the skill at them:
 
 ```text
-/battle-royale init ~/work/my-decision --name "Product launch options"
+/decision-battle-royale ~/specs/idea-a.md ~/specs/idea-b.md
 ```
 
-Then fill in:
-- `~/work/my-decision/ideas/idea-{1..4}.md` — one full spec per option
-- `~/work/my-decision/context/shared-context.md` — the market evidence the judge will ground claims in
+The skill calls `quick-battle.sh` under the hood to:
+- Pull contestant names from each file's `# Title` header
+- Drop the files into a fresh battle dir at `~/Documents/battles/<slug>-<timestamp>/`
+- Run the full pipeline
 
-And run:
+Optional inline flags (the skill recognizes them in natural language too):
+- `--context <ctx.md>` — shared market evidence the judge will ground claims in (otherwise the judge leans entirely on WebSearch)
+- `--name "Title"` — what to call the battle in the final report
+- `--rubric balanced` — which rubric to use (default `balanced`)
+
+### 2. **Scaffold-then-fill mode** — when starting from scratch
+
+If you don't have the option specs written yet:
 
 ```text
-/battle-royale run ~/work/my-decision
+/decision-battle-royale init ~/work/my-decision --name "Q3 launch"
 ```
 
-That's it. The skill walks through defenders → judge → bracket advancement → final report.
+Creates stub idea files and a `battle.yaml` for you to fill in. Then run:
+
+```text
+/decision-battle-royale run ~/work/my-decision
+```
 
 ---
 
@@ -108,20 +145,20 @@ That's it. The skill walks through defenders → judge → bracket advancement �
 - Naming, branding, or positioning options
 - Vendor shortlists
 - Hiring final-round comparisons
-- Any decision where "ask Claude" and "ask Codex/Gemini" give you different answers and you want a structured tiebreaker
+- Any decision where "ask Claude" and "ask Codex/Gemini" give different answers and you want a structured tiebreaker
 
 **Not a fit:**
 - Single-option go/no-go decisions (use a planning tool)
 - Decisions with >4 candidates (the bracket only handles 2 or 4; cull first)
 - Decisions where you don't have written specs for each option (write them first — the act of writing is often what reveals the winner)
 
-Natural-language invocations the skill responds to: *"battle these ideas,"* *"have agents debate these options,"* *"decide between these,"* *"second opinion on which is best,"* *"compare these specs."*
+Natural-language invocations the skill responds to: *"decide between these,"* *"which option is best,"* *"compare these ideas,"* *"second opinion on which to pick,"* *"battle these specs,"* *"have agents debate."*
 
 ---
 
 ## How it differs from just asking Claude
 
-| Naive approach (ask Claude in your session) | battle-royale |
+| Naive approach (ask Claude in your session) | decision-battle-royale |
 |---|---|
 | One AI judges all options in one pass | Separate AI defenders + separate fresh-context judge per match |
 | Judgment happens in your conversation context | Judgment happens in independent subagents — your framing can't leak |
@@ -168,17 +205,18 @@ See [CHANGELOG.md](CHANGELOG.md) for the full evolution.
 ## File layout
 
 ```
-battle-royale/
+decision-battle-royale/
 ├── SKILL.md                    # Claude Code skill definition
 ├── README.md                   # this file
-├── CHANGELOG.md                # v0.1 → v0.4 evolution
+├── CHANGELOG.md                # v0.1 → v0.5 evolution
 ├── prompts/
 │   ├── defender.tmpl.md        # zealous-advocate prompt
 │   └── judge.tmpl.md           # The Skeptic prompt
 ├── rubrics/
 │   └── balanced.yaml           # 5-criterion default rubric
 ├── scripts/                    # bash orchestration (deterministic)
-│   ├── init-battle.sh
+│   ├── quick-battle.sh         # one-shot scaffold from inline paths ← NEW in v0.5
+│   ├── init-battle.sh          # stub-file scaffold for from-scratch decisions
 │   ├── render-prompt.sh
 │   ├── parse-verdict.sh
 │   ├── advance.sh
@@ -191,9 +229,9 @@ A user-created decision looks like:
 
 ```
 my-decision/
-├── battle.yaml                 # config — contestants, rubric, format
+├── battle.yaml                 # config — contestants, rubric, format (auto-generated in inline mode)
 ├── ideas/idea-{1..4}.md        # one spec per option (you write these)
-├── context/shared-context.md   # market evidence (you write this)
+├── context/shared-context.md   # market evidence (optional)
 └── output/                     # generated; never edit by hand
     ├── state.json
     ├── round-1/match-A/

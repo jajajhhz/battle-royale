@@ -1,5 +1,59 @@
 # Changelog
 
+## v0.5 — 2026-05-11 — Inline mode + rename to `decision-battle-royale`
+
+**Renames the skill** and **adds a low-friction invocation path**. No breaking
+changes to the prompt or rubric layer; v0.4 verdicts remain parseable.
+
+### Why
+
+Two friction points emerged from real use:
+
+1. **Setup was heavy.** Even when the user already had each option written up
+   as a markdown spec, running a battle required `init-battle.sh`, then
+   editing `battle.yaml` to name each contestant, then placing each spec at
+   the exact filename the YAML referenced. The fastest path from "I have
+   these specs" to "give me a verdict" was 6+ manual steps.
+
+2. **The name didn't signal the use case.** `battle-royale` is memorable but
+   doesn't tell first-time visitors what the skill is for. People searching
+   for "decide between options with AI" or "compare ideas" had no signal
+   this skill existed.
+
+### What changed
+
+- **New `scripts/quick-battle.sh`**: scaffolds a complete battle directory
+  from 2 or 4 idea file paths passed as arguments. Auto-extracts contestant
+  names from each file's `# Title` H1, drops files into a fresh dir at
+  `~/Documents/battles/<slug>-<timestamp>/`, generates `battle.yaml` with a
+  real bracket, and either copies the user's `--context` file or writes a
+  "no shared context, lean on WebSearch" stub.
+
+- **Skill renamed** from `battle-royale` to `decision-battle-royale`. The
+  legacy `/battle-royale` slash command still works as an alias (listed in
+  the SKILL.md description). The repository URL is unchanged.
+
+- **SKILL.md describes two invocation modes**: inline (preferred — point at
+  existing spec files) and scaffold-then-fill (for starting from scratch).
+  The orchestrator's procedure is unchanged for both — only the path to the
+  battle directory differs.
+
+- **README rewritten** to lead with the one-line inline usage and the
+  decision-making framing instead of the architecture.
+
+### Migration
+
+- Existing battles continue to run. The `/battle-royale` alias is still
+  documented and respected.
+- The default rubric, defender prompt, and judge prompt are unchanged from
+  v0.4.
+- To pick up v0.5, pull and re-link the skill directory under the new name:
+  ```bash
+  ln -s "$(pwd)/decision-battle-royale" ~/.claude/skills/decision-battle-royale
+  ```
+
+---
+
 ## v0.4 — 2026-05-09 — The Skeptic: anti-circular-context bias
 
 **Breaking change** to judge prompt only. Defender format unchanged from v0.3.
