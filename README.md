@@ -1,6 +1,6 @@
 # 🥊 Decision Battle Royale
 
-**Decide between 2 or 4 ideas, plans, or strategies — by having independent fresh-context AI agents argue and judge them for you.**
+**Decide between 2 or more ideas, plans, or strategies — by having independent fresh-context AI agents argue and judge them for you.**
 
 A [Claude Code](https://claude.com/claude-code) skill (`/decision-battle-royale`) that turns "which option should I pick?" into a structured tournament: each option gets its own zealous AI advocate, then a *separate* AI judge with no prior context picks a winner using a calibrated rubric and primary-source verification.
 
@@ -14,7 +14,7 @@ Use it when you're stuck between options and want a **second opinion that isn't 
 
 ## Why you'd want this
 
-You've been brainstorming with Claude. Now you have 2-4 candidate ideas — product directions, architectural choices, naming options, vendor shortlists, hiring final-rounds, anything. You ask "which is best?" and get a confident answer.
+You've been brainstorming with Claude. Now you have a handful of candidate ideas — product directions, architectural choices, naming options, vendor shortlists, hiring final-rounds, anything. You ask "which is best?" and get a confident answer.
 
 **The problem:** that answer is from the same session that helped you generate the ideas. It's already anchored to your framing, the last thing you said, and whatever rhetoric stuck around.
 
@@ -38,12 +38,14 @@ Once installed, just pass the markdown files for each option directly to the sla
 
 That's it. The skill auto-extracts contestant names from the file titles, scaffolds a battle directory, spawns the defenders in parallel, spawns the skeptical judge, and reports the verdict — all without you authoring a `battle.yaml` or filling in stub files.
 
-**With four contestants and shared market context:**
+**Any number of contestants is supported.** With five options and shared market context:
 
 ```text
-/decision-battle-royale battle these: option-a.md option-b.md option-c.md option-d.md
+/decision-battle-royale battle these: a.md b.md c.md d.md e.md
 context is market-research.md, name it "Q3 product launch options"
 ```
+
+The bracket auto-builds: 5 contestants → 1 round-1 match (2 contestants play, 3 get byes) → Semifinal → Final. 4 matches total to crown a winner. Any N ≥ 2 works (the tool refuses N > 32 and warns at N > 16 because cost scales linearly).
 
 The skill responds to natural language — *"compare these specs,"* *"which option is best,"* *"have agents debate these,"* *"second opinion on which to pick"* — not just the literal slash command.
 
@@ -140,7 +142,7 @@ Creates stub idea files and a `battle.yaml` for you to fill in. Then run:
 ## When to use this
 
 **Good fits:**
-- Picking between 2-4 product directions
+- Picking between 2-8 product directions (any N ≥ 2 works; cost grows linearly)
 - Architectural decisions with clear trade-offs (monolith vs microservices, framework A vs B)
 - Naming, branding, or positioning options
 - Vendor shortlists
@@ -149,7 +151,8 @@ Creates stub idea files and a `battle.yaml` for you to fill in. Then run:
 
 **Not a fit:**
 - Single-option go/no-go decisions (use a planning tool)
-- Decisions with >4 candidates (the bracket only handles 2 or 4; cull first)
+- Decisions with >16 candidates — cost grows linearly and the verdict signal-to-noise drops; cull your shortlist first (the tool refuses >32)
+- Decisions where you want a full ranking rather than a single winner — single-elimination only picks one champion
 - Decisions where you don't have written specs for each option (write them first — the act of writing is often what reveals the winner)
 
 Natural-language invocations the skill responds to: *"decide between these,"* *"which option is best,"* *"compare these ideas,"* *"second opinion on which to pick,"* *"battle these specs,"* *"have agents debate."*

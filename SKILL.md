@@ -1,11 +1,11 @@
 ---
 name: decision-battle-royale
-description: Help the user decide between 2 or 4 ideas, options, plans, or strategies by running a structured AI tournament. Each option is defended by an independent fresh-context Claude subagent in parallel; a separate fresh-context Claude subagent acts as a skeptical judge with WebSearch verification. The orchestrator (you) never reads defenses or verdicts — only spawns subagents and runs bash scripts — so your conversation's framing cannot bias the result. Triggers on phrases like "decide between these", "which option is best", "compare these ideas", "second opinion on which to pick", "have agents debate", "battle these options", "score these against a rubric", "/decision-battle-royale", "/decision-battle", or the legacy "/battle-royale". Use when the user has 2-4 candidate ideas/specs (as files or paths) and wants a defensible, auditable verdict. Prefer the one-shot inline mode (`run-inline`) when the user just passes file paths.
+description: Help the user decide between 2 or more ideas, options, plans, or strategies by running a structured single-elimination AI tournament. Each option is defended by an independent fresh-context Claude subagent in parallel; a separate fresh-context Claude subagent acts as a skeptical judge with WebSearch verification. The orchestrator (you) never reads defenses or verdicts — only spawns subagents and runs bash scripts — so your conversation's framing cannot bias the result. Triggers on phrases like "decide between these", "which option is best", "compare these ideas", "second opinion on which to pick", "have agents debate", "battle these options", "score these against a rubric", "/decision-battle-royale", "/decision-battle", or the legacy "/battle-royale". Use when the user has 2 or more candidate ideas/specs (as files or paths) and wants a defensible, auditable verdict. Prefer the one-shot inline mode when the user just passes file paths. Bracket auto-builds with byes for non-powers-of-2 (N=3, 5, 6, 7, 9...); cost scales as N-1 matches × 3 subagents per match.
 ---
 
 # Decision Battle Royale — Decide between options with fresh-context AI judges
 
-A skill for deciding between 2 or 4 candidate ideas, options, plans, or strategies — through a structured tournament where each option gets a zealous AI advocate and a separate fresh-context AI judge picks the winner.
+A skill for deciding between **2 or more** candidate ideas, options, plans, or strategies — through a structured single-elimination tournament where each option gets a zealous AI advocate and a separate fresh-context AI judge picks the winner.
 
 **Core principle:** the orchestration flow is deterministic. The orchestrator (Claude in this session) only does two things: (1) spawn subagents with prompts, (2) run bash scripts. Defending ideas and judging are done by **fresh-context Claude subagents**. Grade parsing, bracket advancement, and reporting are done by **bash scripts**. **Do not interpret defenses or judgments yourself.** This is what eliminates orchestrator bias structurally.
 
@@ -13,7 +13,7 @@ A skill for deciding between 2 or 4 candidate ideas, options, plans, or strategi
 
 ## When to use
 
-Use when the user has 2 or 4 candidate ideas/options/plans/strategies and wants a structured comparison that:
+Use when the user has 2 or more candidate ideas/options/plans/strategies and wants a structured comparison that:
 - **Avoids self-evaluation bias** — the session that helped generate the options is not the one judging
 - **Forces evidence-based grading** — the judge defaults every interpretive claim to "unverified" and uses WebSearch to upgrade or downgrade
 - **Surfaces strong-form arguments** via adversarial defense — each option gets a zealous advocate
@@ -21,7 +21,9 @@ Use when the user has 2 or 4 candidate ideas/options/plans/strategies and wants 
 
 Natural-language triggers: *"decide between these"*, *"which option is best"*, *"compare these ideas"*, *"second opinion on which to pick"*, *"battle these options"*, *"have agents debate"*, *"score these against a rubric"*, *"rank these specs"*, *"battle royale"*, *"/decision-battle-royale"*, *"/decision-battle"*, *"/battle-royale"* (legacy).
 
-Not a fit for: single-option go/no-go decisions, decisions with >4 candidates (cull first), or decisions where the user doesn't have written specs yet (have them write the specs first — the act of writing often reveals the answer).
+**Bracket sizes:** any N ≥ 2 is supported. For non-powers-of-2 (N = 3, 5, 6, 7, 9, ...) the first contestants in input order get byes in round 1 so every contestant plays at most one round less than the most-active contestant. Cost scales as **N − 1 matches × 3 Claude subagents per match** (2 defenders + 1 judge). `quick-battle.sh` warns at N > 16 and refuses N > 32 — at that scale cull your shortlist first or use a different tool.
+
+Not a fit for: single-option go/no-go decisions, decisions where the user doesn't have written specs yet (have them write the specs first — the act of writing often reveals the answer), or decisions where the user wants a full ranking rather than a single winner (single-elimination only picks one champion).
 
 ---
 
@@ -38,7 +40,7 @@ When the user has the idea documents already written and just gives you their pa
 
 **Procedure:**
 
-1. **Identify the idea paths** from the user's message. Expect exactly 2 or 4 paths to readable `.md` files. If the user gave inline text instead of paths, ask them to save the specs first — the system needs files for the audit trail.
+1. **Identify the idea paths** from the user's message. Expect 2 or more paths to readable `.md` files. If the user gave inline text instead of paths, ask them to save the specs first — the system needs files for the audit trail. Any N ≥ 2 is supported; the bracket auto-builds with byes for non-powers-of-2.
 2. **Identify optional flags:**
    - context file (look for "context is X", "shared context X", or `--context X`)
    - battle name (look for "name it X", or `--name`)
